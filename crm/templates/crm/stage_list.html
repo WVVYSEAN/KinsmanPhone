@@ -96,8 +96,7 @@
           {% for co in records %}
           <tr class="wvvy-tr-hover transition-colors">
             <td class="px-4 py-3 font-medium">
-              <button onclick="openHistory({{ co.id }}, 'company')"
-                      style="color:var(--text-primary);font-weight:500;" class="hover:underline text-left transition-colors" onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-primary)'">{{ co.company_name }}</button>
+              <span style="color:var(--text-primary);font-weight:500;">{{ co.company_name }}</span>
             </td>
             <td class="px-4 py-3">{% if co.website %}<a href="{{ co.website }}" target="_blank" style="color:var(--cyan);opacity:0.8;text-decoration:none" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">{{ co.website|cut:"https://"|cut:"http://" }}</a>{% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}</td>
             <td class="px-4 py-3" style="color:var(--text-secondary)">{{ co.industry|default:"—" }}</td>

@@ -140,3 +140,12 @@ This keeps migrations idempotent across both local SQLite and production Postgre
 Server-rendered Django templates with Tailwind CSS (CDN) and vanilla JS — no frontend build step. Custom styles in `crm/static/crm/wvvy.css`. Settings page sections are shown/hidden via `showSection(id)` JS; the active section id is stored in `?section=` query param. The `buildPayload()` function in settings.html collects `[data-str-field]`, `[data-bool-field]`, `[data-field]` inputs — password and URL type inputs are skipped if blank to avoid overwriting saved values.
 
 Advanced Search page polls `/api/tasks/<job_pk>/status/` every 2s while a TaskJob is active, rendering a two-phase progress bar (0–50% import, 50–100% email) in the status cell of each search row.
+
+**base.html globals** — the following are available on every page and must not be removed:
+- `getCsrf()` — reads `csrftoken` cookie; used by all fetch calls
+- `showToast(msg, isError)` — bottom-right toast via `#save-indicator`
+- `formatDate(iso)` — formats `YYYY-MM-DD` to `Mon D, YYYY`
+- `escHtml(str)` — HTML-escapes a string
+- `HEAT_OPTIONS` / `STAGE_OPTIONS` — metadata arrays mirroring Python constants
+
+The **history modal has been removed** from `base.html`. There is no longer an `openHistory()` function or `#history-modal` element. Contact rows navigate to `/contact/<pk>/` (the dedicated detail page). Company rows in `stage_list.html` show the name as plain text (no modal trigger).
