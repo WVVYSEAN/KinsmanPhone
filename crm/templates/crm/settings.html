@@ -1,0 +1,1291 @@
+{% extends "crm/base.html" %}
+
+{% block title %}Settings — WVVYReach{% endblock %}
+
+{% block content %}
+<div class="flex min-h-screen">
+
+  <!-- ── Left Nav ── -->
+  <nav class="w-52 flex-shrink-0 px-3 py-8 sticky top-16 self-start" style="border-right:1px solid var(--border-subtle)">
+    <p class="wvvy-section-label px-3 mb-3">Settings</p>
+    <ul class="space-y-0.5">
+      {% for item in nav_items %}
+      <li>
+        <button onclick="showSection('{{ item.id }}')"
+                id="nav-{{ item.id }}"
+                class="nav-btn wvvy-settings-nav-btn {% if forloop.first %}active{% endif %}">
+          {{ item.label }}
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <!-- ── Content ── -->
+  <main class="flex-1 px-8 py-8 max-w-3xl">
+
+    <!-- ══ LEADS ══ -->
+    <div id="section-leads" class="space-y-6">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-bold" style="color:var(--text-primary)">Leads</h1>
+        <button onclick="saveSettings()" class="wvvy-btn-primary">Save Changes</button>
+      </div>
+
+      <!-- Scoring Signals -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Scoring Signals</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Points awarded per signal (each applied once, max total 100)</p>
+        </div>
+        <div class="divide-y divide-zinc-800">
+          {% for signal in signals %}
+          <div class="px-6 py-4 flex items-center justify-between gap-6">
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-white">{{ signal.label }}</p>
+              <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">{{ signal.description }}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-xs text-zinc-500">pts</span>
+              <input type="number" min="0" max="100" data-field="{{ signal.field }}" value="{{ signal.value }}"
+                     class="wvvy-input text-center font-semibold" style="width:4rem" />
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Heat Thresholds -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Heat Thresholds</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Upper score boundary (inclusive) for each heat level</p>
+        </div>
+        <div class="px-6 py-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div class="flex flex-col gap-1.5">
+            <span class="wvvy-badge wvvy-badge-muted w-fit">Cold</span>
+            <p class="text-xs" style="color:var(--text-tertiary)">0 –</p>
+            <input type="number" min="0" max="99" data-field="thresh_cold" value="{{ settings.thresh_cold }}"
+                   class="wvvy-input font-semibold" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <span class="wvvy-badge wvvy-badge-amber w-fit">Medium</span>
+            <p class="text-xs" style="color:var(--text-tertiary)">above Cold –</p>
+            <input type="number" min="0" max="99" data-field="thresh_medium" value="{{ settings.thresh_medium }}"
+                   class="wvvy-input font-semibold" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <span class="wvvy-badge wvvy-badge-rose w-fit">Warm</span>
+            <p class="text-xs" style="color:var(--text-tertiary)">above Medium –</p>
+            <input type="number" min="0" max="100" data-field="thresh_warm" value="{{ settings.thresh_warm }}"
+                   class="wvvy-input font-semibold" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <span class="wvvy-badge wvvy-badge-cyan w-fit">Active</span>
+            <p class="text-xs" style="color:var(--text-tertiary)">above Warm – 100</p>
+            <div class="text-sm rounded-lg px-3 py-1.5" style="border:1px dashed var(--border-default);background:var(--bg-card);color:var(--text-tertiary)">Auto</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ideal Industries -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Ideal Industries</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Selected industries receive the +{{ settings.pts_ideal_industry }} ideal industry bonus</p>
+        </div>
+        <div class="px-6 py-5 flex flex-wrap gap-2">
+          {% for industry in industry_list %}
+          <button type="button" onclick="toggleIndustry(this)" data-industry="{{ industry }}"
+                  class="industry-chip wvvy-badge transition-all {% if industry in ideal %}wvvy-badge-cyan{% else %}wvvy-badge-muted{% endif %}" style="cursor:pointer;padding:0.375rem 0.75rem">
+            {{ industry }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="saveSettings()" class="wvvy-btn-primary">Save Changes</button>
+      </div>
+    </div>
+
+    <!-- ══ EMAIL ══ -->
+    <div id="section-email" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-bold" style="color:var(--text-primary)">Email</h1>
+        <button onclick="saveSettings()" class="wvvy-btn-primary">Save Changes</button>
+      </div>
+
+      <!-- Reply Tracking -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Reply Tracking</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Automatically detect when contacts reply to your outreach emails</p>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Reply-To Domain</label>
+            <input type="text" data-str-field="reply_to_domain" value="{{ settings.reply_to_domain }}"
+                   placeholder="yourdomain.com"
+                   class="wvvy-input" />
+            <p class="text-xs text-zinc-500 mt-1">
+              When set, outgoing emails use <code class="bg-zinc-800 border border-zinc-700 px-1 rounded">reply+{contact_id}@yourdomain.com</code> as the reply-to address.
+            </p>
+          </div>
+          <div class="rounded-lg border border-zinc-800 bg-zinc-800/50 px-4 py-3 space-y-2">
+            <p class="text-xs font-semibold text-zinc-300">How to set up automated reply detection:</p>
+            <ol class="text-xs text-zinc-400 space-y-1.5 list-decimal list-inside">
+              <li>Enter your domain above and click <strong class="text-white">Save Changes</strong>.</li>
+              <li>In your email provider, configure a catch-all rule for <code class="bg-zinc-800 border border-zinc-700 px-1 rounded">reply+*@yourdomain.com</code>.</li>
+              <li>Set it to POST inbound messages as JSON to:<br>
+                <code class="bg-zinc-800 border border-zinc-700 px-1 rounded mt-1 inline-block">{{ request.scheme }}://{{ request.get_host }}/api/webhook/inbound/</code>
+              </li>
+              <li>WVVYReach will automatically log a <strong class="text-white">Reply Received</strong> touchpoint.</li>
+            </ol>
+          </div>
+          <div class="rounded-lg border border-zinc-700 bg-zinc-800/50 px-4 py-3">
+            <p class="text-xs font-semibold text-zinc-300 mb-1">Manual fallback</p>
+            <p class="text-xs text-zinc-400">Open any contact modal and click <strong class="text-white">↩ Mark Replied</strong> to log a reply with one click.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resend -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Resend — Email Integration</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Send emails from the contact modal and track opens automatically</p>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">API Key</label>
+            <input type="password" id="resend-api-key" data-str-field="resend_api_key" value="{{ settings.resend_api_key }}"
+                   placeholder="re_••••••••••••••••••••••••" autocomplete="new-password"
+                   class="wvvy-input font-mono" />
+            <p class="text-xs text-zinc-500 mt-1">Found in your Resend dashboard under API Keys.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">From Address <span class="font-normal text-zinc-500">(your account)</span></label>
+            <input type="text" data-str-field="from_email" value="{{ profile.from_email }}"
+                   placeholder="Your Name &lt;you@yourdomain.com&gt;"
+                   class="wvvy-input" />
+            <p class="text-xs text-zinc-500 mt-1">Your personal sending address — must be from a domain verified in Resend.</p>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Webhook Signing Secret <span class="font-normal text-zinc-500">(optional — for open tracking)</span></label>
+            <input type="password" data-str-field="resend_webhook_secret" value="{{ settings.resend_webhook_secret }}"
+                   placeholder="whsec_••••••••••••••••••••••••" autocomplete="new-password"
+                   class="wvvy-input font-mono" />
+            <p class="text-xs text-zinc-500 mt-1">
+              In Resend, add a webhook endpoint:
+              <code class="bg-zinc-800 border border-zinc-700 px-1 rounded">{{ request.scheme }}://{{ request.get_host }}/api/webhook/resend/</code>
+              — subscribe to <code class="bg-zinc-800 border border-zinc-700 px-1 rounded">email.opened</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="saveSettings()" class="wvvy-btn-primary">Save Changes</button>
+      </div>
+    </div>
+
+    <!-- ══ OUTREACH ══ -->
+    <div id="section-outreach" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-bold" style="color:var(--text-primary)">Outreach</h1>
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <span class="text-xs font-medium" style="color:var(--text-tertiary)">Auto-send</span>
+          <div class="relative">
+            <input type="checkbox" id="outreach-enabled" class="sr-only peer"
+                   {% if profile.outreach_enabled %}checked{% endif %}
+                   onchange="document.getElementById('outreach-enabled-val').value = this.checked ? '1' : ''; saveSettings();">
+            <div class="w-9 h-5 rounded-full peer peer-checked:bg-white transition-colors" style="background:var(--bg-card);border:1px solid var(--border-default)"></div>
+            <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-zinc-500 peer-checked:bg-black rounded-full shadow transition-all peer-checked:translate-x-4"></div>
+          </div>
+          <input type="hidden" id="outreach-enabled-val" data-bool-field="outreach_enabled"
+                 value="{% if profile.outreach_enabled %}1{% endif %}">
+        </label>
+      </div>
+
+      <!-- Calendar Link -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Calendar Link</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">The AI will include this link when steering prospects toward a meeting. Also available as <code style="color:var(--cyan);font-family:monospace">&#123;&#123;meeting_link&#125;&#125;</code> in email templates.</p>
+        </div>
+        <div class="px-6 py-5 space-y-3">
+          {% if settings.calendar_booking_url %}
+          <div id="cal-saved-display" class="flex items-center gap-2 text-xs">
+            <span style="color:var(--text-secondary)">Saved:</span>
+            <a id="cal-saved-link" href="{{ settings.calendar_booking_url }}" target="_blank" rel="noopener"
+               style="color:var(--cyan);word-break:break-all;">{{ settings.calendar_booking_url }}</a>
+          </div>
+          {% else %}
+          <div id="cal-saved-display" style="display:none" class="flex items-center gap-2 text-xs">
+            <span style="color:var(--text-secondary)">Saved:</span>
+            <a id="cal-saved-link" href="#" target="_blank" rel="noopener"
+               style="color:var(--cyan);word-break:break-all;"></a>
+          </div>
+          {% endif %}
+          <div class="flex gap-2">
+            <input id="cal-url-input" type="url" value="{{ settings.calendar_booking_url }}"
+                   placeholder="https://cal.com/yourname or https://calendly.com/yourname"
+                   class="wvvy-input flex-1" />
+            <button type="button" onclick="saveCalendarUrl()"
+                    class="wvvy-btn-primary shrink-0" style="white-space:nowrap">Save</button>
+          </div>
+          <p id="cal-save-status" class="text-xs" style="display:none"></p>
+        </div>
+      </div>
+
+      <!-- AI Review Mode -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
+          <div>
+            <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">AI Review Mode</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Queue AI replies for human approval before sending — helps the AI improve over time</p>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <span class="text-xs font-medium" style="color:var(--text-tertiary)">Enabled</span>
+            <div class="relative">
+              <input type="checkbox" id="ai-review-mode" class="sr-only peer"
+                     {% if settings.ai_review_mode %}checked{% endif %}
+                     onchange="document.getElementById('ai-review-mode-val').value = this.checked ? '1' : ''; saveSettings();">
+              <div class="w-9 h-5 rounded-full peer peer-checked:bg-white transition-colors" style="background:var(--bg-card);border:1px solid var(--border-default)"></div>
+              <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-zinc-500 peer-checked:bg-black rounded-full shadow transition-all peer-checked:translate-x-4"></div>
+            </div>
+            <input type="hidden" id="ai-review-mode-val" data-bool-field="ai_review_mode"
+                   value="{% if settings.ai_review_mode %}1{% endif %}">
+          </label>
+        </div>
+      </div>
+
+      <!-- Backup Outreach -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
+          <div>
+            <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Backup Outreach</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Re-sends outreach to any contacts from the last Advanced Search import that didn't receive an email.</p>
+          </div>
+          <button type="button" onclick="runBackupOutreach()"
+                  id="backup-outreach-btn" class="wvvy-btn-ghost text-sm shrink-0"
+                  {% if active_backup_job %}disabled{% endif %}>
+            {% if active_backup_job %}Running…{% else %}Run{% endif %}
+          </button>
+        </div>
+        <!-- Progress bar (hidden when idle) -->
+        <div id="backup-outreach-progress" class="px-6 py-4 {% if not active_backup_job %}hidden{% endif %}">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs" style="color:var(--text-secondary)">
+              <span id="backup-progress-label">{% if active_backup_job %}Emailing…{% endif %}</span>
+              <span id="backup-progress-pct">{% if active_backup_job %}0%{% endif %}</span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background:var(--bg-card);border:1px solid var(--border-subtle)">
+              <div id="backup-progress-bar" class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <div id="backup-outreach-result" class="hidden px-6 py-3 text-sm" style="color:var(--text-secondary)"></div>
+      </div>
+
+      <!-- Outreach Attachments (workspace-level: applied to drip emails + fallback outreach) -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
+          <div>
+            <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Outreach Attachments</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Attached to all drip emails and to outreach emails that don't use a named template. Up to 40 MB per file.</p>
+          </div>
+          <div>
+            <input type="file" id="outreach-att-input" class="hidden" multiple onchange="uploadOutreachAttachments(this)">
+            <button type="button" onclick="document.getElementById('outreach-att-input').click()"
+                    class="wvvy-btn-ghost text-sm">+ Add File</button>
+          </div>
+        </div>
+        <div id="outreach-att-list" class="divide-y" style="border-color:var(--border-subtle)">
+          {% for att in outreach_attachments %}
+          <div id="outreach-att-{{ att.id }}" class="px-6 py-3 flex items-center gap-3">
+            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-tertiary)">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+            </svg>
+            <span class="flex-1 text-sm truncate" style="color:var(--text-secondary)">{{ att.filename }}</span>
+            <span class="text-xs flex-shrink-0" style="color:var(--text-tertiary)">{{ att.file_size|filesizeformat }}</span>
+            <button onclick="deleteOutreachAttachment({{ att.id }})"
+                    class="text-xs flex-shrink-0 font-medium transition" style="color:var(--rose)">Remove</button>
+          </div>
+          {% empty %}
+          <div id="outreach-att-empty" class="px-6 py-6 text-sm text-center" style="color:var(--text-tertiary)">No attachments yet.</div>
+          {% endfor %}
+        </div>
+        <div id="outreach-att-upload-status" class="px-6 py-2 text-xs hidden" style="color:var(--cyan)"></div>
+      </div>
+
+      <!-- Drip Campaign -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Drip Campaign</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">AI-generated cold outreach sequence for leads in the <strong style="color:var(--text-secondary)">Cold Lead</strong> stage</p>
+        </div>
+        <div class="px-6 py-5 grid grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold" style="color:var(--text-secondary)">Interval (days)</label>
+            <p class="text-xs" style="color:var(--text-tertiary)">Days between each drip email</p>
+            <input type="number" min="1" max="30" data-field="drip_interval_days"
+                   value="{{ settings.drip_interval_days }}"
+                   class="wvvy-input font-semibold" style="width:6rem" />
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-semibold" style="color:var(--text-secondary)">Max Emails</label>
+            <p class="text-xs" style="color:var(--text-tertiary)">Max drip emails per contact</p>
+            <input type="number" min="1" max="20" data-field="drip_max_followups"
+                   value="{{ settings.drip_max_followups }}"
+                   class="wvvy-input font-semibold" style="width:6rem" />
+          </div>
+        </div>
+        <div class="px-6 pb-5">
+          <button onclick="saveSettings()" class="wvvy-btn-primary">Save</button>
+        </div>
+      </div>
+
+      <!-- Drip Training Data (admin only) -->
+      {% if is_admin %}
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Training Data</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Captured interactions for fine-tuning. Export via <code style="color:var(--cyan);font-family:monospace">manage.py export_training_data</code></p>
+        </div>
+        <!-- Stats row (fetched on load) -->
+        <div id="training-stats" class="px-6 py-4 grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-4"
+             style="border-bottom:1px solid var(--border-subtle)">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs" style="color:var(--text-tertiary)">Total examples</span>
+            <span id="td-total" class="text-sm font-semibold" style="color:var(--text-primary)">—</span>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs" style="color:var(--text-tertiary)">High quality</span>
+            <span id="td-hq" class="text-sm font-semibold" style="color:var(--text-primary)">—</span>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs" style="color:var(--text-tertiary)">Ready to export</span>
+            <span id="td-unexported" class="text-sm font-semibold" style="color:var(--text-primary)">—</span>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs" style="color:var(--text-tertiary)">Last export</span>
+            <span id="td-last-export" class="text-sm font-semibold" style="color:var(--text-primary)">—</span>
+          </div>
+        </div>
+        <!-- Fine-tuned model ID -->
+        <div class="px-6 py-5 space-y-2">
+          <label class="text-xs font-semibold" style="color:var(--text-secondary)">Fine-tuned model ID (OpenAI)</label>
+          <p class="text-xs" style="color:var(--text-tertiary)">Leave blank to use Claude. Set this after completing an OpenAI fine-tuning job to use your custom model for drip emails.</p>
+          <div class="flex gap-2 mt-2">
+            <input id="drip-model-id-input" type="text"
+                   placeholder="ft:gpt-4o-mini:your-org:model-name:id"
+                   class="wvvy-input flex-1" style="font-family:monospace;font-size:0.8125rem" />
+            <button type="button" onclick="saveModelId()" class="wvvy-btn-primary shrink-0">Save</button>
+          </div>
+          <p id="model-id-status" class="text-xs hidden" style="color:var(--cyan)"></p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Signature -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Email Signature</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Insert into templates with <code class="font-mono" style="color:var(--cyan)">&#123;&#123;signature&#125;&#125;</code> — HTML supported</p>
+        </div>
+        <div class="px-6 py-5">
+          <textarea data-str-field="signature" rows="5"
+                    placeholder="&lt;p&gt;Best,&lt;br&gt;Your Name&lt;br&gt;WVVY Agency&lt;/p&gt;"
+                    class="wvvy-input resize-y font-mono text-xs">{{ settings.signature }}</textarea>
+          <button onclick="saveSettings()" class="wvvy-btn-primary mt-3">Save Signature</button>
+        </div>
+      </div>
+
+      <!-- Image Library -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Image Library</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Upload images and copy their URL to embed in HTML templates</p>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <div class="flex items-center gap-3">
+            <input type="file" id="img-upload-input" accept="image/*" class="hidden" onchange="uploadImage(this)">
+            <button type="button" onclick="document.getElementById('img-upload-input').click()"
+                    class="wvvy-btn-ghost text-sm">Upload Image</button>
+            <span id="img-upload-status" class="text-xs" style="color:var(--text-tertiary)"></span>
+          </div>
+          <div id="img-gallery" class="grid grid-cols-3 gap-3">
+            {% for img in email_images %}
+            <div id="img-card-{{ img.id }}" class="rounded-lg overflow-hidden relative group" style="border:1px solid var(--border-subtle);background:var(--bg-card)">
+              <img src="{{ img.url }}" alt="{{ img.name }}" class="w-full h-24 object-cover">
+              <div class="px-2 py-1.5 flex items-center justify-between gap-1">
+                <span class="text-xs truncate" style="color:var(--text-tertiary)" title="{{ img.name }}">{{ img.name }}</span>
+                <div class="flex gap-1 flex-shrink-0">
+                  <button onclick="copyImgUrl('{{ img.url }}')" title="Copy URL"
+                          class="text-xs px-1.5 py-0.5 rounded" style="color:var(--cyan);border:1px solid var(--border-subtle)">Copy</button>
+                  <button onclick="deleteImage({{ img.id }})" title="Delete"
+                          class="text-xs px-1.5 py-0.5 rounded" style="color:var(--rose);border:1px solid var(--border-subtle)">✕</button>
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <p id="img-empty" class="col-span-3 text-sm py-2" style="color:var(--text-tertiary)">No images uploaded yet.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Templates List -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
+          <div>
+            <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Email Templates</h2>
+            <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Select a template when adding cold leads — the default template is used automatically</p>
+          </div>
+          <button onclick="openTemplateEditor(null)" class="wvvy-btn-primary text-sm">+ New Template</button>
+        </div>
+        <div id="tmpl-list" class="divide-y" style="border-color:var(--border-subtle)">
+          {% for tmpl in email_templates %}
+          <div id="tmpl-row-{{ tmpl.id }}" class="px-6 py-4 flex items-center gap-3">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold" style="color:var(--text-primary)">{{ tmpl.name }}</p>
+              <p class="text-xs truncate mt-0.5" style="color:var(--text-tertiary)">{{ tmpl.subject }}</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              {% if tmpl.is_default %}
+              <span class="wvvy-badge wvvy-badge-cyan">Default</span>
+              {% else %}
+              <button onclick="setDefaultTemplate({{ tmpl.id }})"
+                      class="text-xs font-medium transition" style="color:var(--text-tertiary)">Set Default</button>
+              {% endif %}
+              <button onclick="openTemplateEditor({{ tmpl.id }})"
+                      class="text-xs font-semibold" style="color:var(--cyan)">Edit</button>
+              <button onclick="deleteTemplate({{ tmpl.id }})"
+                      class="text-xs font-medium" style="color:var(--rose)">Delete</button>
+            </div>
+          </div>
+          {% empty %}
+          <div id="tmpl-empty" class="px-6 py-8 text-center text-sm" style="color:var(--text-tertiary)">No templates yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Template Editor (inline, hidden by default) -->
+      <div id="tmpl-editor" class="wvvy-card overflow-hidden hidden">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 id="tmpl-editor-title" class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">New Template</h2>
+          <button onclick="closeTemplateEditor()" class="wvvy-btn-ghost" style="padding:0.2rem 0.5rem;border:none">✕</button>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <input type="hidden" id="tmpl-id">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Template Name</label>
+              <input type="text" id="tmpl-name" placeholder="e.g. Cold Outreach v1" class="wvvy-input">
+            </div>
+            <div class="flex items-end">
+              <label class="flex items-center gap-2 cursor-pointer select-none pb-2">
+                <input type="checkbox" id="tmpl-is-default" class="rounded">
+                <span class="text-sm" style="color:var(--text-secondary)">Set as default</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Variables -->
+          <div>
+            <p class="text-xs font-semibold mb-2" style="color:var(--text-tertiary)">Variables — click to insert at cursor:</p>
+            <div class="flex flex-wrap gap-2">
+              {% for var in outreach_vars %}
+              <button type="button" onclick="insertTmplVar('{{ var.key }}')"
+                      class="px-2.5 py-1 rounded-md text-xs font-mono font-semibold transition"
+                      style="background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border-default)">
+                {{ var.key }}<span style="color:var(--text-tertiary)" class="font-sans font-normal ml-1">{{ var.label }}</span>
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Subject</label>
+            <input type="text" id="tmpl-subject" placeholder="e.g. Quick question for &#123;&#123;company&#125;&#125;"
+                   class="wvvy-input" onfocus="tmplActiveField = this">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">
+              Body
+              <span class="font-normal ml-1" style="color:var(--text-tertiary)">(HTML supported — use &lt;p&gt;, &lt;img src="..."&gt;, etc.)</span>
+            </label>
+            <textarea id="tmpl-body" rows="12"
+                      placeholder="Hi &#123;&#123;first_name&#125;&#125;,&#10;&#10;..."
+                      class="wvvy-input resize-y font-mono text-xs"
+                      onfocus="tmplActiveField = this"></textarea>
+          </div>
+
+          <!-- Template Attachments -->
+          <div id="tmpl-att-section" class="hidden">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-xs font-semibold" style="color:var(--text-tertiary)">Attachments</label>
+              <div>
+                <input type="file" id="tmpl-att-input" class="hidden" multiple onchange="uploadTemplateAttachments(this)">
+                <button type="button" onclick="document.getElementById('tmpl-att-input').click()"
+                        class="text-xs font-medium transition" style="color:var(--cyan)">+ Add File</button>
+              </div>
+            </div>
+            <div id="tmpl-att-list" class="rounded-lg divide-y" style="border:1px solid var(--border-subtle);border-color:var(--border-subtle)">
+              <div id="tmpl-att-empty" class="px-4 py-3 text-xs" style="color:var(--text-tertiary)">No attachments yet.</div>
+            </div>
+            <div id="tmpl-att-upload-status" class="text-xs mt-1 hidden" style="color:var(--cyan)"></div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <button type="button" onclick="closeTemplateEditor()" class="wvvy-btn-ghost">Cancel</button>
+            <button type="button" onclick="saveTemplate()" class="wvvy-btn-primary">Save Template</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ WORKSPACE ══ -->
+    <div id="section-workspace" class="space-y-6 hidden">
+      <h1 class="text-lg font-bold" style="color:var(--text-primary)">Workspace</h1>
+
+      {% if is_admin %}
+      <!-- Logo -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Workspace Logo</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Replaces the "WVVYReach" text in the navigation bar</p>
+        </div>
+        <div class="px-6 py-5 flex items-center gap-5">
+          <div id="logo-preview" class="w-14 h-14 rounded-xl border border-zinc-700 bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {% if workspace.logo %}
+            <img src="{{ workspace.logo.url }}" alt="{{ workspace.name }}" class="w-full h-full object-contain">
+            {% else %}
+            <span class="text-zinc-500 text-xl font-bold">{{ workspace.name|first|upper }}</span>
+            {% endif %}
+          </div>
+          <div class="flex-1">
+            <input type="file" id="logo-input" accept="image/*" class="hidden" onchange="uploadLogo(this)">
+            <button onclick="document.getElementById('logo-input').click()"
+                    class="text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-medium px-4 py-2 rounded-lg transition">
+              Upload Logo
+            </button>
+            <p class="text-xs text-zinc-600 mt-1.5">PNG, JPG, SVG recommended. Displayed at 32px height in the nav.</p>
+          </div>
+        </div>
+      </div>
+
+      {% endif %}
+    </div>
+
+    <!-- ══ TEAM ══ -->
+    <div id="section-team" class="space-y-6 hidden">
+      <h1 class="text-lg font-bold" style="color:var(--text-primary)">Team</h1>
+
+      {% if is_admin %}
+      <!-- Workspace Members -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Workspace Members</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Manage who has access to {{ workspace.name }}</p>
+        </div>
+        <div class="divide-y divide-zinc-800" id="members-list">
+          {% for mem in members %}
+          <div class="px-6 py-4 flex items-center justify-between gap-4" data-user-id="{{ mem.user.id }}">
+            <div>
+              <p class="text-sm font-semibold text-white">{{ mem.user.get_full_name|default:mem.user.email }}</p>
+              <p class="text-xs text-zinc-500">{{ mem.user.email }}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold px-2 py-1 rounded-md
+                {% if mem.role == 'owner' %}bg-amber-100 text-amber-700
+                {% elif mem.role == 'admin' %}bg-sky-100 text-sky-700
+                {% else %}bg-zinc-800 text-zinc-400{% endif %}">
+                {{ mem.get_role_display }}
+              </span>
+              {% if is_owner and mem.user != workspace.owner %}
+              <button onclick="removeMember({{ mem.user.id }})"
+                      class="text-xs text-red-400 hover:text-red-300 font-medium transition">Remove</button>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="px-6 py-4 border-t border-zinc-800">
+          <p class="text-xs font-semibold text-zinc-400 mb-3">Invite someone</p>
+          <div class="flex gap-3 flex-wrap">
+            <input type="email" id="invite-email" placeholder="colleague@company.com"
+                   class="wvvy-input" style="flex:1;min-width:0" />
+            <select id="invite-role" class="wvvy-input" style="width:auto">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button onclick="inviteMember()" class="wvvy-btn-primary">Invite</button>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if is_owner %}
+      <!-- Danger Zone -->
+      <div class="bg-zinc-900 rounded-xl border border-red-900/40 overflow-hidden">
+        <div class="px-6 py-4 border-b border-red-900/40">
+          <h2 class="text-sm font-bold text-red-400 uppercase tracking-wide">Danger Zone</h2>
+        </div>
+        <div class="px-6 py-5 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-white">Delete Workspace</p>
+            <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Permanently deletes {{ workspace.name }} and all its CRM data. This cannot be undone.</p>
+          </div>
+          <button onclick="deleteWorkspace({{ workspace.pk }})"
+                  class="text-sm border border-red-800 text-red-400 hover:bg-red-950 font-medium px-4 py-2 rounded-lg transition flex-shrink-0">
+            Delete Workspace
+          </button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ══ WVVY ONLY ══ -->
+    {% if is_master %}
+    <div id="section-wvvy" class="space-y-6 hidden">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-lg font-bold" style="color:var(--text-primary)">WVVY Only</h1>
+          <p class="text-xs text-amber-500 mt-0.5">Visible to seanconormcdonnell@gmail.com only</p>
+        </div>
+        <button onclick="saveSettings()" class="wvvy-btn-primary">Save Changes</button>
+      </div>
+
+      <!-- Resend API -->
+      <div class="wvvy-card overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+          <h2 class="wvvy-section-label" style="font-size:0.75rem;font-weight:700">Resend — Email Integration</h2>
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">Global API key and webhook configuration</p>
+        </div>
+        <div class="px-6 py-5 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">API Key</label>
+            <input type="password" data-str-field="resend_api_key" value="{{ settings.resend_api_key }}"
+                   placeholder="re_••••••••••••••••••••••••" autocomplete="new-password"
+                   class="wvvy-input font-mono" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Webhook Signing Secret <span class="font-normal text-zinc-500">(optional)</span></label>
+            <input type="password" data-str-field="resend_webhook_secret" value="{{ settings.resend_webhook_secret }}"
+                   placeholder="whsec_••••••••••••••••••••••••" autocomplete="new-password"
+                   class="wvvy-input font-mono" />
+            <p class="text-xs text-zinc-500 mt-1">
+              Webhook endpoint: <code class="bg-zinc-800 border border-zinc-700 px-1 rounded">{{ request.scheme }}://{{ request.get_host }}/api/webhook/resend/</code>
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="flex justify-end">
+        <button onclick="saveSettings()" class="wvvy-btn-primary">Save Changes</button>
+      </div>
+    </div>
+    {% endif %}
+
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const sections = ['leads', 'email', 'outreach', 'workspace', 'team'{% if is_master %}, 'wvvy'{% endif %}];
+
+  function showSection(id) {
+    sections.forEach(s => {
+      document.getElementById('section-' + s)?.classList.add('hidden');
+      const btn = document.getElementById('nav-' + s);
+      if (btn) btn.classList.remove('active');
+    });
+    document.getElementById('section-' + id)?.classList.remove('hidden');
+    const active = document.getElementById('nav-' + id);
+    if (active) active.classList.add('active');
+    history.replaceState(null, '', '?section=' + id);
+  }
+
+  // Restore section from URL on load
+  const urlSection = new URLSearchParams(location.search).get('section');
+  if (urlSection && sections.includes(urlSection)) showSection(urlSection);
+
+  function toggleIndustry(btn) {
+    const active = btn.classList.contains('wvvy-badge-cyan');
+    if (active) {
+      btn.classList.remove('wvvy-badge-cyan');
+      btn.classList.add('wvvy-badge-muted');
+    } else {
+      btn.classList.add('wvvy-badge-cyan');
+      btn.classList.remove('wvvy-badge-muted');
+    }
+  }
+
+  let _activeField = null;
+  function setActiveField(el) { _activeField = el; }
+
+  function insertVar(v) {
+    const el = _activeField || document.getElementById('outreach-body');
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end   = el.selectionEnd   ?? el.value.length;
+    el.value = el.value.slice(0, start) + v + el.value.slice(end);
+    el.setSelectionRange(start + v.length, start + v.length);
+    el.focus();
+  }
+
+  function buildPayload() {
+    const payload = {};
+    document.querySelectorAll('[data-field]').forEach(el => {
+      payload[el.dataset.field] = parseInt(el.value, 10) || 0;
+    });
+    document.querySelectorAll('[data-str-field]').forEach(el => {
+      const val = el.value.trim();
+      // Skip blank sensitive fields — a blank value should not overwrite a
+      // previously saved entry (e.g. API keys, calendar URL).
+      if ((el.type === 'password' || el.type === 'url') && val === '') return;
+      payload[el.dataset.strField] = val;
+    });
+    document.querySelectorAll('[data-bool-field]').forEach(el => {
+      payload[el.dataset.boolField] = el.value === '1';
+    });
+    payload.ideal_industries = Array.from(
+      document.querySelectorAll('.industry-chip.bg-white')
+    ).map(b => b.dataset.industry);
+    return payload;
+  }
+
+  function uploadLogo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('logo', file);
+    fd.append('csrfmiddlewaretoken', getCsrf());
+    fetch('/api/workspace/logo/', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          document.getElementById('logo-preview').innerHTML =
+            `<img src="${d.logo_url}" class="w-full h-full object-contain">`;
+          showToast('Logo updated');
+          const navLogo = document.querySelector('header img[alt]');
+          if (navLogo) navLogo.src = d.logo_url;
+        } else showToast(d.error || 'Upload failed', true);
+      })
+      .catch(() => showToast('Upload failed', true));
+  }
+
+  function inviteMember() {
+    const email = document.getElementById('invite-email').value.trim();
+    const role  = document.getElementById('invite-role').value;
+    if (!email) return;
+    fetch('/api/workspace/invite/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ email, role }),
+    }).then(r => r.json()).then(d => {
+      if (d.ok) {
+        document.getElementById('invite-email').value = '';
+        if (d.email_warning) showToast(d.email_warning, true);
+        else showToast('Invitation sent to ' + email);
+      } else showToast(d.error || 'Failed', true);
+    });
+  }
+
+  function removeMember(userId) {
+    if (!confirm('Remove this member from the workspace?')) return;
+    fetch('/api/workspace/remove-member/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ user_id: userId }),
+    }).then(r => r.json()).then(d => {
+      if (d.ok) document.querySelector(`[data-user-id="${userId}"]`).remove();
+      else showToast(d.error || 'Failed', true);
+    });
+  }
+
+  function deleteWorkspace(pk) {
+    if (!confirm('Permanently delete this workspace and ALL its data? This cannot be undone.')) return;
+    fetch(`/workspaces/${pk}/delete/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    }).then(() => { window.location.href = '/workspaces/'; });
+  }
+
+  function saveSettings() {
+    fetch('/api/settings/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify(buildPayload()),
+    }).then(r => r.json())
+      .then(() => showToast('Settings saved — scores recalculated'))
+      .catch(() => showToast('Save failed', true));
+  }
+
+  function saveCalendarUrl() {
+    const input  = document.getElementById('cal-url-input');
+    const status = document.getElementById('cal-save-status');
+    const url    = input.value.trim();
+
+    fetch('/api/settings/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ calendar_booking_url: url }),
+    }).then(r => r.json()).then(() => {
+      // Update the "Saved:" display
+      const display = document.getElementById('cal-saved-display');
+      const link    = document.getElementById('cal-saved-link');
+      if (url) {
+        link.href        = url;
+        link.textContent = url;
+        display.style.display = '';
+      } else {
+        display.style.display = 'none';
+      }
+      status.textContent     = url ? 'Saved.' : 'Cleared.';
+      status.style.color     = 'var(--cyan)';
+      status.style.display   = '';
+      setTimeout(() => { status.style.display = 'none'; }, 3000);
+    }).catch(() => {
+      status.textContent   = 'Save failed.';
+      status.style.color   = 'var(--error)';
+      status.style.display = '';
+    });
+  }
+
+  // ── Email Templates ──────────────────────────────────────────────────────────
+
+  let tmplActiveField = null;
+
+  function insertTmplVar(v) {
+    const el = tmplActiveField || document.getElementById('tmpl-body');
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end   = el.selectionEnd   ?? el.value.length;
+    el.value = el.value.slice(0, start) + v + el.value.slice(end);
+    el.setSelectionRange(start + v.length, start + v.length);
+    el.focus();
+  }
+
+  // Template metadata (id, name, is_default) for quick reference
+  const _templatesMeta = {{ email_templates_json|safe }};
+
+  function openTemplateEditor(id) {
+    const editor = document.getElementById('tmpl-editor');
+    document.getElementById('tmpl-id').value      = id || '';
+    document.getElementById('tmpl-is-default').checked = false;
+
+    if (id) {
+      document.getElementById('tmpl-editor-title').textContent = 'Edit Template';
+      // Fetch full template data including attachments
+      fetch('/api/email-templates/')
+        .then(r => r.json())
+        .then(data => {
+          const t = data.templates.find(x => x.id === id);
+          if (!t) return;
+          document.getElementById('tmpl-name').value    = t.name;
+          document.getElementById('tmpl-subject').value = t.subject;
+          document.getElementById('tmpl-body').value    = t.body;
+          document.getElementById('tmpl-is-default').checked = t.is_default;
+          _renderTemplateAttachments(t.attachments || []);
+        });
+    } else {
+      document.getElementById('tmpl-editor-title').textContent = 'New Template';
+      document.getElementById('tmpl-name').value    = '';
+      document.getElementById('tmpl-subject').value = '';
+      document.getElementById('tmpl-body').value    = '';
+      document.getElementById('tmpl-att-section').classList.add('hidden');
+    }
+
+    editor.classList.remove('hidden');
+    editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function closeTemplateEditor() {
+    document.getElementById('tmpl-editor').classList.add('hidden');
+  }
+
+  function saveTemplate() {
+    const id      = document.getElementById('tmpl-id').value;
+    const payload = {
+      id:         id ? parseInt(id) : null,
+      name:       document.getElementById('tmpl-name').value.trim() || 'Untitled',
+      subject:    document.getElementById('tmpl-subject').value.trim(),
+      body:       document.getElementById('tmpl-body').value,
+      is_default: document.getElementById('tmpl-is-default').checked,
+    };
+
+    fetch('/api/email-templates/save/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify(payload),
+    }).then(r => r.json()).then(d => {
+      if (!d.ok) { showToast(d.error || 'Save failed', true); return; }
+      showToast(`Template "${d.name}" saved`);
+      closeTemplateEditor();
+      location.reload();
+    });
+  }
+
+  function deleteTemplate(id) {
+    if (!confirm('Delete this template?')) return;
+    fetch(`/api/email-templates/${id}/delete/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    }).then(() => {
+      document.getElementById('tmpl-row-' + id)?.remove();
+      showToast('Template deleted');
+      if (!document.querySelector('[id^="tmpl-row-"]')) {
+        const list = document.getElementById('tmpl-list');
+        if (list && !list.querySelector('#tmpl-empty')) {
+          list.innerHTML = '<div id="tmpl-empty" class="px-6 py-8 text-center text-sm" style="color:var(--text-tertiary)">No templates yet.</div>';
+        }
+      }
+    });
+  }
+
+  function setDefaultTemplate(id) {
+    fetch(`/api/email-templates/${id}/set-default/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    }).then(() => { showToast('Default template set'); location.reload(); });
+  }
+
+  // ── Backup Outreach ──────────────────────────────────────────────────────────
+
+  let _backupPoller = null;
+
+  function _startBackupPolling(jobId) {
+    if (_backupPoller) clearInterval(_backupPoller);
+    _pollBackupJob(jobId);
+    _backupPoller = setInterval(() => _pollBackupJob(jobId), 2000);
+  }
+
+  async function _pollBackupJob(jobId) {
+    try {
+      const r = await fetch(`/api/tasks/${jobId}/status/`);
+      const d = await r.json();
+      _renderBackupProgress(d);
+      if (['succeeded', 'failed'].includes(d.status)) {
+        clearInterval(_backupPoller);
+        _backupPoller = null;
+      }
+    } catch (e) {}
+  }
+
+  function _renderBackupProgress(job) {
+    const btn      = document.getElementById('backup-outreach-btn');
+    const progress = document.getElementById('backup-outreach-progress');
+    const label    = document.getElementById('backup-progress-label');
+    const pctSpan  = document.getElementById('backup-progress-pct');
+    const bar      = document.getElementById('backup-progress-bar');
+    const result   = document.getElementById('backup-outreach-result');
+
+    if (job.status === 'succeeded') {
+      progress.classList.add('hidden');
+      result.classList.remove('hidden');
+      const sent    = job.emails_sent;
+      const skipped = job.emails_skipped;
+      result.style.color = sent > 0 ? 'var(--cyan)' : 'var(--text-tertiary)';
+      result.textContent = sent > 0
+        ? `Sent ${sent.toLocaleString()} email${sent !== 1 ? 's' : ''}${skipped ? ' · ' + skipped.toLocaleString() + ' skipped' : ''}.`
+        : 'No missed contacts found in the last import.';
+      btn.disabled    = false;
+      btn.textContent = 'Run';
+      return;
+    }
+
+    if (job.status === 'failed') {
+      progress.classList.add('hidden');
+      result.classList.remove('hidden');
+      result.style.color = 'var(--rose)';
+      result.textContent = job.error_message || 'Job failed.';
+      btn.disabled    = false;
+      btn.textContent = 'Run';
+      return;
+    }
+
+    // pending / running
+    progress.classList.remove('hidden');
+    result.classList.add('hidden');
+    btn.disabled    = true;
+    btn.textContent = 'Running…';
+
+    const done  = job.emails_sent + job.emails_skipped;
+    const total = job.emails_total;
+    const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+    label.textContent   = total > 0
+      ? `Emailing ${done.toLocaleString()} / ${total.toLocaleString()}`
+      : 'Starting…';
+    pctSpan.textContent = `${pct}%`;
+    bar.style.width     = `${pct}%`;
+  }
+
+  async function runBackupOutreach() {
+    const btn    = document.getElementById('backup-outreach-btn');
+    const result = document.getElementById('backup-outreach-result');
+    btn.disabled    = true;
+    btn.textContent = 'Starting…';
+    result.classList.add('hidden');
+
+    try {
+      const r = await fetch('/api/backup-outreach/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      });
+      const d = await r.json();
+      if (!d.ok && d.already_running) {
+        // Job was already running — attach to it
+        _startBackupPolling(d.job_id);
+        return;
+      }
+      if (!d.ok) {
+        result.classList.remove('hidden');
+        result.style.color  = 'var(--rose)';
+        result.textContent  = d.error || 'Failed to start.';
+        btn.disabled    = false;
+        btn.textContent = 'Run';
+        return;
+      }
+      _startBackupPolling(d.job_id);
+    } catch (e) {
+      result.classList.remove('hidden');
+      result.style.color  = 'var(--rose)';
+      result.textContent  = 'Request failed — check your connection.';
+      btn.disabled    = false;
+      btn.textContent = 'Run';
+    }
+  }
+
+  // Resume polling if a job was already running on page load
+  {% if active_backup_job %}
+  _startBackupPolling({{ active_backup_job.id }});
+  {% endif %}
+
+  // ── Outreach Attachments ──────────────────────────────────────────────────────
+
+  function _fmtBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function _attachmentRowHtml(att, deleteUrl, rowIdPrefix) {
+    return `
+      <div id="${rowIdPrefix}${att.id}" class="px-6 py-3 flex items-center gap-3">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-tertiary)">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+        </svg>
+        <span class="flex-1 text-sm truncate" style="color:var(--text-secondary)">${att.filename}</span>
+        <span class="text-xs flex-shrink-0" style="color:var(--text-tertiary)">${_fmtBytes(att.file_size)}</span>
+        <button onclick="${deleteUrl}(${att.id})"
+                class="text-xs flex-shrink-0 font-medium transition" style="color:var(--rose)">Remove</button>
+      </div>`;
+  }
+
+  async function uploadOutreachAttachments(input) {
+    const status = document.getElementById('outreach-att-upload-status');
+    const files  = Array.from(input.files);
+    if (!files.length) return;
+    status.textContent = `Uploading ${files.length} file(s)…`;
+    status.classList.remove('hidden');
+    let ok = 0;
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('csrfmiddlewaretoken', getCsrf());
+      const r = await fetch('/api/outreach-attachments/upload/', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!d.ok) { showToast(d.error || 'Upload failed', true); continue; }
+      document.getElementById('outreach-att-empty')?.remove();
+      document.getElementById('outreach-att-list').insertAdjacentHTML(
+        'beforeend', _attachmentRowHtml(d, 'deleteOutreachAttachment', 'outreach-att-'));
+      ok++;
+    }
+    status.textContent = ok ? `${ok} file(s) uploaded` : '';
+    setTimeout(() => status.classList.add('hidden'), 3000);
+    input.value = '';
+  }
+
+  function deleteOutreachAttachment(pk) {
+    fetch(`/api/outreach-attachments/${pk}/delete/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    }).then(r => r.json()).then(d => {
+      if (!d.ok) { showToast('Delete failed', true); return; }
+      document.getElementById(`outreach-att-${pk}`)?.remove();
+      const list = document.getElementById('outreach-att-list');
+      if (list && !list.querySelector('[id^="outreach-att-"]:not(#outreach-att-empty)')) {
+        list.innerHTML = '<div id="outreach-att-empty" class="px-6 py-6 text-sm text-center" style="color:var(--text-tertiary)">No attachments yet.</div>';
+      }
+    });
+  }
+
+  // ── Template Attachments ──────────────────────────────────────────────────────
+
+  function _renderTemplateAttachments(attachments) {
+    const section = document.getElementById('tmpl-att-section');
+    const list    = document.getElementById('tmpl-att-list');
+    section.classList.remove('hidden');
+    if (!attachments || !attachments.length) {
+      list.innerHTML = '<div id="tmpl-att-empty" class="px-4 py-3 text-xs" style="color:var(--text-tertiary)">No attachments yet.</div>';
+      return;
+    }
+    list.innerHTML = attachments.map(a =>
+      `<div id="tmpl-file-att-${a.id}" class="px-4 py-2.5 flex items-center gap-3">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-tertiary)">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+        </svg>
+        <span class="flex-1 text-sm truncate" style="color:var(--text-secondary)">${a.filename}</span>
+        <span class="text-xs flex-shrink-0" style="color:var(--text-tertiary)">${_fmtBytes(a.file_size)}</span>
+        <button onclick="deleteTemplateAttachment(${a.id})"
+                class="text-xs flex-shrink-0 font-medium" style="color:var(--rose)">Remove</button>
+      </div>`
+    ).join('');
+  }
+
+  async function uploadTemplateAttachments(input) {
+    const tmplId = document.getElementById('tmpl-id').value;
+    if (!tmplId) { showToast('Save the template first before adding attachments', true); input.value = ''; return; }
+    const status = document.getElementById('tmpl-att-upload-status');
+    const files  = Array.from(input.files);
+    if (!files.length) return;
+    status.textContent = `Uploading ${files.length} file(s)…`;
+    status.classList.remove('hidden');
+    let ok = 0;
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('csrfmiddlewaretoken', getCsrf());
+      const r = await fetch(`/api/email-templates/${tmplId}/attachments/upload/`, { method: 'POST', body: fd });
+      const d = await r.json();
+      if (!d.ok) { showToast(d.error || 'Upload failed', true); continue; }
+      document.getElementById('tmpl-att-empty')?.remove();
+      document.getElementById('tmpl-att-list').insertAdjacentHTML(
+        'beforeend',
+        `<div id="tmpl-file-att-${d.id}" class="px-4 py-2.5 flex items-center gap-3">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--text-tertiary)">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+          </svg>
+          <span class="flex-1 text-sm truncate" style="color:var(--text-secondary)">${d.filename}</span>
+          <span class="text-xs flex-shrink-0" style="color:var(--text-tertiary)">${_fmtBytes(d.file_size)}</span>
+          <button onclick="deleteTemplateAttachment(${d.id})"
+                  class="text-xs flex-shrink-0 font-medium" style="color:var(--rose)">Remove</button>
+        </div>`);
+      ok++;
+    }
+    status.textContent = ok ? `${ok} file(s) uploaded` : '';
+    setTimeout(() => status.classList.add('hidden'), 3000);
+    input.value = '';
+  }
+
+  function deleteTemplateAttachment(pk) {
+    fetch(`/api/email-template-attachments/${pk}/delete/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    }).then(r => r.json()).then(d => {
+      if (!d.ok) { showToast('Delete failed', true); return; }
+      document.getElementById(`tmpl-file-att-${pk}`)?.remove();
+      const list = document.getElementById('tmpl-att-list');
+      if (list && !list.querySelector('[id^="tmpl-file-att-"]')) {
+        list.innerHTML = '<div id="tmpl-att-empty" class="px-4 py-3 text-xs" style="color:var(--text-tertiary)">No attachments yet.</div>';
+      }
+    });
+  }
+
+  // ── Image Library ────────────────────────────────────────────────────────────
+
+  function uploadImage(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const status = document.getElementById('img-upload-status');
+    status.textContent = 'Uploading…';
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('csrfmiddlewaretoken', getCsrf());
+    fetch('/api/email-images/upload/', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) { status.textContent = d.error || 'Upload failed'; return; }
+        status.textContent = '';
+        document.getElementById('img-empty')?.remove();
+        const gallery = document.getElementById('img-gallery');
+        const card = document.createElement('div');
+        card.id = `img-card-${d.id}`;
+        card.className = 'rounded-lg overflow-hidden relative group';
+        card.style = 'border:1px solid var(--border-subtle);background:var(--bg-card)';
+        card.innerHTML = `
+          <img src="${d.url}" alt="${d.name}" class="w-full h-24 object-cover">
+          <div class="px-2 py-1.5 flex items-center justify-between gap-1">
+            <span class="text-xs truncate" style="color:var(--text-tertiary)" title="${d.name}">${d.name}</span>
+            <div class="flex gap-1 flex-shrink-0">
+              <button onclick="copyImgUrl('${d.url}')" class="text-xs px-1.5 py-0.5 rounded" style="color:var(--cyan);border:1px solid var(--border-subtle)">Copy</button>
+              <button onclick="deleteImage(${d.id})" class="text-xs px-1.5 py-0.5 rounded" style="color:var(--rose);border:1px solid var(--border-subtle)">✕</button>
+            </div>
+          </div>`;
+        gallery.prepend(card);
+        showToast('Image uploaded — URL copied to clipboard');
+        copyImgUrl(d.url);
+        input.value = '';
+      })
+      .catch(() => { status.textContent = 'Upload failed'; });
+  }
+
+  function copyImgUrl(url) {
+    const full = window.location.origin + url;
+    navigator.clipboard.writeText(full).then(() => showToast('Image URL copied'));
+  }
+
+  function deleteImage(id) {
+    if (!confirm('Delete this image?')) return;
+    fetch(`/api/email-images/${id}/delete/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    }).then(() => {
+      document.getElementById('img-card-' + id)?.remove();
+      showToast('Image deleted');
+    });
+  }
+
+  // ── Training data stats ────────────────────────────────────────────────────
+  function loadTrainingStats() {
+    fetch('/api/training-data/stats/')
+      .then(r => r.json())
+      .then(d => {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('td-total',       d.total_examples ?? '—');
+        set('td-hq',          d.high_quality   ?? '—');
+        set('td-unexported',  (d.unexported ?? '—') + ' unexported');
+        set('td-last-export', d.last_export
+          ? new Date(d.last_export).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})
+          : 'Never');
+        const input = document.getElementById('drip-model-id-input');
+        if (input && d.drip_model_id) input.value = d.drip_model_id;
+      })
+      .catch(() => {});
+  }
+
+  function saveModelId() {
+    const input  = document.getElementById('drip-model-id-input');
+    const status = document.getElementById('model-id-status');
+    const val    = (input?.value || '').trim();
+    fetch('/api/training-data/set-model-id/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ drip_model_id: val }),
+    }).then(r => r.json()).then(d => {
+      if (d.error) { showToast(d.error, true); return; }
+      if (status) {
+        status.textContent = val ? `Active: ${val}` : 'Cleared — Claude will be used';
+        status.classList.remove('hidden');
+        setTimeout(() => status.classList.add('hidden'), 4000);
+      }
+      showToast('Model ID saved');
+    }).catch(() => showToast('Save failed', true));
+  }
+
+  // Load training stats when the outreach section is shown
+  const _origShowSection = typeof showSection === 'function' ? showSection : null;
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('training-stats')) loadTrainingStats();
+  });
+</script>
+{% endblock %}

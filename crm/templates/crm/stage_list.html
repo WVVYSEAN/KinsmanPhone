@@ -1,0 +1,320 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}{{ stage_label }} {{ model_label }} — WVVYReach{% endblock %}
+
+{% block content %}
+<style>
+  .needs-attention-row { background: rgba(0,232,200,0.04) !important; }
+  .needs-attention-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    margin-left: 5px;
+    vertical-align: middle;
+    animation: pulse-dot 2s ease infinite;
+    flex-shrink: 0;
+  }
+</style>
+<main class="max-w-7xl mx-auto px-6 py-8">
+
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <span class="{{ badge_class }}" style="font-size:0.875rem">{{ stage_label }}</span>
+      <h1 class="text-xl font-bold" style="color:var(--text-primary)">{{ model_label }}</h1>
+      <span class="text-sm" style="color:var(--text-tertiary)">{{ count }} record{{ count|pluralize }}</span>
+    </div>
+    <button onclick="openAddModal()" class="wvvy-btn-primary">
+      + Add {{ model_label|slice:":-1" }}
+    </button>
+  </div>
+
+  <div class="wvvy-card overflow-hidden">
+    {% if records %}
+    <div id="fb-list" class="px-4 py-3 flex flex-wrap gap-3 items-center min-h-[52px]" style="border-bottom:1px solid var(--border-subtle)"></div>
+    <div class="overflow-x-auto">
+
+      {% if model_type == 'contacts' %}
+      <table id="tbl-list" class="w-full text-sm whitespace-nowrap"
+             data-init-table data-filter-bar="fb-list"
+             data-dropdown-cols="5,6,7,8" data-dropdown-labels="Industry,Source,Owner,Heat">
+        <thead>
+          <tr class="text-left" style="background:var(--bg-card);border-bottom:1px solid var(--border-subtle)">
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Name</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Company</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Role / Title</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">LinkedIn</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Location</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Industry</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Source</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Owner</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Heat</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y" style="border-color:var(--border-subtle)">
+          {% for c in records %}
+          <tr class="wvvy-tr-hover transition-colors{% if c.needs_attention %} needs-attention-row{% endif %}">
+            <td class="px-4 py-3 font-medium">
+              <a href="/contact/{{ c.id }}/"
+                 style="color:var(--text-primary);font-weight:500;text-decoration:none;" class="hover:underline transition-colors" onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-primary)'">
+                {{ c.name }}{% if c.needs_attention %} <span class="needs-attention-dot" title="Expressed interest — needs your attention"></span>{% endif %}
+              </a>
+            </td>
+            <td class="px-4 py-3" style="color:var(--text-secondary)">{{ c.company|default:"—" }}</td>
+            <td class="px-4 py-3" style="color:var(--text-secondary)">{{ c.role|default:"—" }}</td>
+            <td class="px-4 py-3">{% if c.linkedin %}<a href="{{ c.linkedin }}" target="_blank" style="color:var(--cyan);opacity:0.8;text-decoration:none" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">View</a>{% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}</td>
+            <td class="px-4 py-3" style="color:var(--text-tertiary)">{{ c.location|default:"—" }}</td>
+            <td class="px-4 py-3" style="color:var(--text-tertiary)">{{ c.industry|default:"—" }}</td>
+            <td class="px-4 py-3"><span class="wvvy-badge wvvy-badge-muted">{{ c.get_source_display|default:"—" }}</span></td>
+            <td class="px-4 py-3" style="color:var(--text-secondary)">{{ c.relationship_owner|default:"—" }}</td>
+            <td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ c.heat_badge }}">{{ c.get_heat_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% else %}{# companies #}
+      <table id="tbl-list" class="w-full text-sm whitespace-nowrap"
+             data-init-table data-filter-bar="fb-list"
+             data-dropdown-cols="2,4,9" data-dropdown-labels="Industry,Funding Stage,Heat">
+        <thead>
+          <tr class="text-left" style="background:var(--bg-card);border-bottom:1px solid var(--border-subtle)">
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Company</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Website</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Industry</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Size</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Funding Stage</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Product Category</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Last Funding</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">HQ</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Agency Relationships</th>
+            <th class="px-4 py-3 wvvy-section-label" style="font-size:0.6875rem">Heat</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y" style="border-color:var(--border-subtle)">
+          {% for co in records %}
+          <tr class="wvvy-tr-hover transition-colors">
+            <td class="px-4 py-3 font-medium">
+              <button onclick="openHistory({{ co.id }}, 'company')"
+                      style="color:var(--text-primary);font-weight:500;" class="hover:underline text-left transition-colors" onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-primary)'">{{ co.company_name }}</button>
+            </td>
+            <td class="px-4 py-3">{% if co.website %}<a href="{{ co.website }}" target="_blank" style="color:var(--cyan);opacity:0.8;text-decoration:none" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">{{ co.website|cut:"https://"|cut:"http://" }}</a>{% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}</td>
+            <td class="px-4 py-3" style="color:var(--text-secondary)">{{ co.industry|default:"—" }}</td>
+            <td class="px-4 py-3" style="color:var(--text-secondary)">{{ co.size|default:"—" }}</td>
+            <td class="px-4 py-3"><span class="wvvy-badge wvvy-badge-muted">{{ co.funding_stage|default:"—" }}</span></td>
+            <td class="px-4 py-3" style="color:var(--text-secondary)">{{ co.product_category|default:"—" }}</td>
+            <td class="px-4 py-3" style="color:var(--text-tertiary)">{{ co.last_funding_date|default:"—" }}</td>
+            <td class="px-4 py-3" style="color:var(--text-tertiary)">{{ co.hq_location|default:"—" }}</td>
+            <td class="px-4 py-3 max-w-xs truncate" style="color:var(--text-tertiary)" title="{{ co.agency_relationships }}">{{ co.agency_relationships|default:"—" }}</td>
+            <td class="px-4 py-3"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ co.heat_badge }}">{{ co.get_heat_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+    </div>
+    {% else %}
+    <div class="px-6 py-16 text-center">
+      <p class="text-sm" style="color:var(--text-tertiary)">No {{ stage_label|lower }} {{ model_label|lower }} yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</main>
+
+<!-- Add Record Modal -->
+<div id="add-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeAddModal()"></div>
+  <div class="relative wvvy-modal-panel w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+      <h2 class="text-base font-bold" style="color:var(--text-primary)">Add {{ model_label|slice:":-1" }}</h2>
+      <button onclick="closeAddModal()" class="wvvy-btn-ghost" style="padding:0.25rem 0.5rem;border:none">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <form id="add-form" class="px-6 py-5 space-y-4" onsubmit="submitAddForm(event)">
+      {% if model_type == 'contacts' %}
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Name <span class="text-red-400">*</span></label>
+          <input name="name" required type="text" placeholder="Full name"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Email</label>
+          <input name="email" type="email" placeholder="email@company.com"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Company</label>
+          <input name="company" type="text" placeholder="Company name"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Role / Title</label>
+          <input name="role" type="text" placeholder="CMO, VP Marketing…"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Location</label>
+          <input name="location" type="text" placeholder="New York, USA"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">LinkedIn URL</label>
+          <input name="linkedin" type="url" placeholder="https://linkedin.com/in/…"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Industry</label>
+          <select name="industry"
+                  class="wvvy-input">
+            <option value="">— Select —</option>
+            {% for ind in industry_list %}<option value="{{ ind }}">{{ ind }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Source</label>
+          <select name="source"
+                  class="wvvy-input">
+            <option value="">— Select —</option>
+            {% for val, label in source_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Stage</label>
+          <select name="stage"
+                  class="wvvy-input">
+            {% for val, label in stage_choices %}<option value="{{ val }}"{% if val == stage %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Relationship Owner</label>
+          <input name="relationship_owner" type="text" placeholder="Your name"
+                 class="wvvy-input"/>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Notes</label>
+          <textarea name="notes" rows="3" placeholder="Any additional context…"
+                    class="wvvy-input resize-none"></textarea>
+        </div>
+      </div>
+
+      {% else %}{# companies #}
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Company Name <span class="text-red-400">*</span></label>
+          <input name="company_name" required type="text" placeholder="Acme Inc."
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Website</label>
+          <input name="website" type="url" placeholder="https://acme.com"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Industry</label>
+          <select name="industry"
+                  class="wvvy-input">
+            <option value="">— Select —</option>
+            {% for ind in industry_list %}<option value="{{ ind }}">{{ ind }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Size</label>
+          <input name="size" type="text" placeholder="50 employees / $5M ARR"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Funding Stage</label>
+          <input name="funding_stage" type="text" placeholder="Seed, Series A…"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">HQ Location</label>
+          <input name="hq_location" type="text" placeholder="New York, USA"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Product Category</label>
+          <input name="product_category" type="text" placeholder="SaaS, E-commerce…"
+                 class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Stage</label>
+          <select name="stage"
+                  class="wvvy-input">
+            {% for val, label in stage_choices %}<option value="{{ val }}"{% if val == stage %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Notes</label>
+          <textarea name="notes" rows="3" placeholder="Any additional context…"
+                    class="wvvy-input resize-none"></textarea>
+        </div>
+      </div>
+
+      {% endif %}
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button" onclick="closeAddModal()" class="wvvy-btn-ghost">Cancel</button>
+        <button type="submit" id="add-submit" class="wvvy-btn-primary">Add {{ model_label|slice:":-1" }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const MODEL_TYPE = '{{ model_type|slice:":-1" }}'; // 'contact' or 'company'
+
+  function openAddModal() {
+    document.getElementById('add-modal').classList.remove('hidden');
+    document.querySelector('#add-form [name="name"], #add-form [name="company_name"]')?.focus();
+  }
+
+  function closeAddModal() {
+    document.getElementById('add-modal').classList.add('hidden');
+    document.getElementById('add-form').reset();
+  }
+
+  function submitAddForm(e) {
+    e.preventDefault();
+    const btn    = document.getElementById('add-submit');
+    const form   = document.getElementById('add-form');
+    const data   = Object.fromEntries(new FormData(form).entries());
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    fetch(`/api/create/${MODEL_TYPE}/`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body:    JSON.stringify(data),
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (res.error) { showToast(res.error, true); return; }
+        showToast(`${res.name} added successfully`);
+        closeAddModal();
+        setTimeout(() => location.reload(), 800);
+      })
+      .catch(() => showToast('Failed to add record', true))
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Add {{ model_label|slice:":-1" }}';
+      });
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAddModal();
+  });
+</script>
+{% endblock %}

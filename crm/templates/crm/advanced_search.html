@@ -1,0 +1,606 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Advanced Search — WVVYReach{% endblock %}
+
+{% block content %}
+<main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+
+  {% if banner %}
+  <div id="banner" class="rounded-xl px-5 py-4 flex items-start gap-3
+    {% if 'Failed' in banner or 'failed' in banner %}bg-red-950 border border-red-800
+    {% else %}bg-emerald-950 border border-emerald-800{% endif %}">
+    <svg class="w-5 h-5 shrink-0 mt-0.5 {% if 'Failed' in banner or 'failed' in banner %}text-red-400{% else %}text-emerald-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {% if 'Failed' in banner or 'failed' in banner %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+      {% else %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      {% endif %}
+    </svg>
+    <p class="text-sm {% if 'Failed' in banner or 'failed' in banner %}text-red-300{% else %}text-emerald-300{% endif %}">{{ banner }}</p>
+  </div>
+  {% endif %}
+
+  <!-- ═══ FILTER FORM ═══ -->
+  <form method="post" id="search-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="form-action" value="run">
+    <input type="hidden" name="search_id" id="form-search-id" value="">
+
+    <div class="bg-zinc-900 rounded-xl border border-zinc-800">
+      <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-zinc-300 uppercase tracking-wide">Filter Form</h2>
+        <input id="search-name" name="search_name" type="text" placeholder="Search name (optional)"
+               class="text-sm border border-zinc-700 rounded-lg px-3 py-1.5 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600 w-56">
+      </div>
+
+      <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+        <!-- First Name -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">First Name</label>
+          <input name="firstName" type="text" placeholder="e.g. John"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+        <!-- Last Name -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Last Name</label>
+          <input name="lastName" type="text" placeholder="e.g. Smith"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+        <!-- Job Title -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Job Title <span class="text-zinc-600">(comma-separated)</span></label>
+          <input name="personTitle" type="text" placeholder="CMO, VP Marketing, Head of Growth"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+        <!-- Person Country -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Person Country <span class="text-zinc-600">(comma-separated)</span></label>
+          <input name="personCountry" type="text" placeholder="United States, United Kingdom"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+
+        <!-- Email Status -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Email Status</label>
+          <select name="contactEmailStatus"
+                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
+            {% for val, label in email_status_options %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Company Domain -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Company Domain <span class="text-zinc-600">(comma-separated)</span></label>
+          <input name="companyDomain" type="text" placeholder="stripe.com, vercel.com"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+        <!-- Company Country -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Company Country <span class="text-zinc-600">(comma-separated)</span></label>
+          <input name="companyCountry" type="text" placeholder="United States, Canada"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+
+        <!-- Industry Keywords -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Industry <span class="text-zinc-600">(comma-separated keywords)</span></label>
+          <input name="industryKeywords" type="text" placeholder="SaaS, Fintech, Healthcare, AI"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+        <!-- Number of Leads -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Number of Leads <span class="text-zinc-600">(100–30000)</span></label>
+          <input name="totalResults" type="number" value="1000" min="100" max="30000"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
+        </div>
+
+        <!-- Include Emails toggle -->
+        <div class="flex items-center gap-3 pt-5">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" name="include-emails-toggle" id="include-emails-toggle" class="sr-only peer" checked>
+            <input type="hidden" name="includeEmails" id="includeEmails-hidden" value="true">
+            <div class="w-10 h-5 bg-zinc-700 rounded-full peer peer-checked:bg-white transition-all"></div>
+            <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-zinc-400 peer-checked:bg-zinc-900 rounded-full transition-all peer-checked:translate-x-5"></div>
+          </label>
+          <span class="text-sm text-zinc-400">Include Emails</span>
+        </div>
+
+        <!-- Seniority — full row -->
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="block text-xs font-semibold text-zinc-500 mb-2">Seniority</label>
+          <div class="flex flex-wrap gap-2">
+            {% for val, label in seniority_options %}
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
+              <input type="checkbox" name="seniority" value="{{ val }}" class="sr-only">
+              <span class="text-xs font-medium text-zinc-300">{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Department / Function — full row -->
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="block text-xs font-semibold text-zinc-500 mb-2">Department / Function</label>
+          <div class="flex flex-wrap gap-2">
+            {% for val, label in functional_options %}
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
+              <input type="checkbox" name="functional" value="{{ val }}" class="sr-only">
+              <span class="text-xs font-medium text-zinc-300">{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Company Size — full row -->
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="block text-xs font-semibold text-zinc-500 mb-2">Company Size (employees)</label>
+          <div class="flex flex-wrap gap-2">
+            {% for val in company_size_options %}
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
+              <input type="checkbox" name="companyEmployeeSize" value="{{ val }}" class="sr-only">
+              <span class="text-xs font-medium text-zinc-300">{{ val }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Revenue — full row -->
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="block text-xs font-semibold text-zinc-500 mb-2">Revenue</label>
+          <div class="flex flex-wrap gap-2">
+            {% for val in revenue_options %}
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
+              <input type="checkbox" name="revenue" value="{{ val }}" class="sr-only">
+              <span class="text-xs font-medium text-zinc-300">{{ val }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Business Model — full row -->
+        <div class="sm:col-span-2 lg:col-span-3">
+          <label class="block text-xs font-semibold text-zinc-500 mb-2">Business Model</label>
+          <div class="flex flex-wrap gap-2">
+            {% for val in business_model_options %}
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
+              <input type="checkbox" name="businessModel" value="{{ val }}" class="sr-only">
+              <span class="text-xs font-medium text-zinc-300">{{ val }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Action buttons -->
+      <div class="px-6 pb-5 flex items-center gap-3 flex-wrap border-t border-zinc-800 pt-4">
+        <button type="button" onclick="submitAction('run')"
+                class="bg-white hover:bg-zinc-100 text-black text-sm font-semibold px-5 py-2 rounded-lg transition">
+          Run Now
+        </button>
+        <button type="button" onclick="submitAction('save')"
+                class="text-sm font-semibold px-5 py-2 rounded-lg border border-zinc-600 text-zinc-300 hover:border-zinc-400 hover:text-white transition">
+          Save Search
+        </button>
+        <button type="button" onclick="toggleSchedulePanel()"
+                class="text-sm font-semibold px-5 py-2 rounded-lg border border-zinc-600 text-zinc-300 hover:border-zinc-400 hover:text-white transition">
+          Save &amp; Schedule
+        </button>
+      </div>
+
+      <!-- Schedule sub-form (hidden by default) -->
+      <div id="schedule-panel" class="hidden px-6 pb-6 border-t border-zinc-800 pt-5">
+        <p class="text-sm font-bold text-zinc-300 mb-4">Schedule</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Frequency</label>
+            <select id="freq-select" onchange="onFreqChange()"
+                    class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
+              <option value="daily">Daily (9am)</option>
+              <option value="weekly" selected>Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="custom">Custom cron</option>
+            </select>
+          </div>
+          <div id="dow-wrap">
+            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Day of week</label>
+            <select id="dow-select" onchange="buildCron()"
+                    class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
+              <option value="1">Monday</option>
+              <option value="2">Tuesday</option>
+              <option value="3">Wednesday</option>
+              <option value="4">Thursday</option>
+              <option value="5">Friday</option>
+            </select>
+          </div>
+          <div id="dom-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Day of month</label>
+            <input id="dom-input" type="number" value="1" min="1" max="28" onchange="buildCron()"
+                   class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
+          </div>
+          <div id="custom-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Cron expression</label>
+            <input id="custom-cron" type="text" placeholder="0 9 * * 1" onchange="buildCron()"
+                   class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
+          </div>
+        </div>
+        <input type="hidden" name="cron_expression" id="cron-expression-input" value="0 9 * * 1">
+        <p id="cron-preview" class="text-xs text-zinc-500 mb-4">Runs every Monday at 9:00 AM</p>
+        <button type="button" onclick="submitAction('save_schedule')"
+                class="bg-white hover:bg-zinc-100 text-black text-sm font-semibold px-5 py-2 rounded-lg transition">
+          Save Schedule
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <!-- ═══ SAVED SEARCHES TABLE ═══ -->
+  {% if searches %}
+  <div class="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+    <div class="px-6 py-4 border-b border-zinc-800">
+      <h2 class="text-sm font-bold text-zinc-300 uppercase tracking-wide">Saved Searches</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm whitespace-nowrap">
+        <thead>
+          <tr class="border-b border-zinc-800 text-left">
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Filters</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Schedule</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Last Run</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Leads</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-800">
+          {% for search in searches %}
+          {% with last_run=search.runs.first %}
+          <tr id="search-row-{{ search.pk }}" class="hover:bg-zinc-800/40 transition">
+            <td class="px-5 py-3 font-medium text-white">{{ search.name }}</td>
+            <td class="px-5 py-3 text-zinc-400 max-w-xs truncate" title="{{ search.filters_summary }}">{{ search.filters_summary }}</td>
+            <td class="px-5 py-3 text-zinc-400">
+              {% if search.schedule %}
+                <span class="inline-flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full {% if search.schedule.is_active %}bg-emerald-400{% else %}bg-zinc-600{% endif %}"></span>
+                  <code class="text-xs text-zinc-400">{{ search.schedule.cron_expression }}</code>
+                </span>
+              {% else %}
+                <span class="text-zinc-600">One-time</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3" id="run-status-{{ search.pk }}">
+              {% if last_run %}
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold
+                  {% if last_run.status == 'SUCCEEDED' %}bg-emerald-900/50 text-emerald-400
+                  {% elif last_run.status == 'FAILED' %}bg-red-900/50 text-red-400
+                  {% elif last_run.status == 'RUNNING' %}bg-blue-900/50 text-blue-400
+                  {% elif last_run.status == 'ABORTED' %}bg-zinc-800 text-zinc-500
+                  {% else %}bg-zinc-800 text-zinc-500{% endif %}"
+                  data-run-id="{{ last_run.apify_run_id }}"
+                  data-status="{{ last_run.status }}"
+                  {% if last_run.error_message %}title="{{ last_run.error_message }}"{% endif %}>
+                  {% if last_run.status == 'RUNNING' %}
+                  <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                  {% endif %}
+                  {{ last_run.status|title }}
+                </span>
+                {% if last_run.status == 'FAILED' and last_run.error_message %}
+                <div class="flex items-center gap-1.5 mt-1">
+                  <p class="text-xs text-red-400 max-w-xs truncate">{{ last_run.error_message|truncatechars:60 }}</p>
+                  <button type="button" onclick="copyError(this, '{{ last_run.error_message|escapejs }}')"
+                    class="shrink-0 text-zinc-500 hover:text-white transition" title="Copy full error">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                  </button>
+                </div>
+                {% endif %}
+              {% else %}
+                <span class="text-zinc-600 text-xs">Never</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3 text-zinc-400" id="run-leads-{{ search.pk }}">
+              {% if last_run and last_run.leads_imported %}
+                {{ last_run.leads_imported }}
+              {% else %}
+                <span class="text-zinc-600">—</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <div class="flex items-center gap-3">
+                <button onclick="runSearch({{ search.pk }})"
+                        class="text-xs text-white hover:text-zinc-300 font-semibold hover:underline transition">
+                  Run
+                </button>
+                {% if search.schedule %}
+                <button onclick="toggleSchedule({{ search.pk }})"
+                        class="text-xs text-zinc-400 hover:text-white font-medium hover:underline transition"
+                        id="sched-toggle-{{ search.pk }}">
+                  {% if search.schedule.is_active %}Pause{% else %}Resume{% endif %}
+                </button>
+                {% endif %}
+                <button onclick="deleteSearch({{ search.pk }})"
+                        class="text-xs text-zinc-600 hover:text-red-400 font-medium hover:underline transition">
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ── Email toggle sync ─────────────────────────────────────────────────────
+  document.getElementById('include-emails-toggle').addEventListener('change', function() {
+    document.getElementById('includeEmails-hidden').value = this.checked ? 'true' : 'false';
+  });
+
+  // ── Form action dispatch ──────────────────────────────────────────────────
+  function submitAction(action) {
+    document.getElementById('form-action').value = action;
+    document.getElementById('search-form').submit();
+  }
+
+  // ── Schedule panel toggle ─────────────────────────────────────────────────
+  function toggleSchedulePanel() {
+    const panel = document.getElementById('schedule-panel');
+    panel.classList.toggle('hidden');
+    if (!panel.classList.contains('hidden')) {
+      buildCron();
+    }
+  }
+
+  function onFreqChange() {
+    const freq = document.getElementById('freq-select').value;
+    document.getElementById('dow-wrap').classList.toggle('hidden', freq !== 'weekly');
+    document.getElementById('dom-wrap').classList.toggle('hidden', freq !== 'monthly');
+    document.getElementById('custom-wrap').classList.toggle('hidden', freq !== 'custom');
+    buildCron();
+  }
+
+  function buildCron() {
+    const freq = document.getElementById('freq-select').value;
+    let expr, preview;
+    if (freq === 'daily') {
+      expr    = '0 9 * * *';
+      preview = 'Runs every day at 9:00 AM';
+    } else if (freq === 'weekly') {
+      const dow    = document.getElementById('dow-select').value;
+      const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      expr         = `0 9 * * ${dow}`;
+      preview      = `Runs every ${days[dow]} at 9:00 AM`;
+    } else if (freq === 'monthly') {
+      const dom = document.getElementById('dom-input').value || 1;
+      expr      = `0 9 ${dom} * *`;
+      preview   = `Runs on day ${dom} of every month at 9:00 AM`;
+    } else {
+      expr    = document.getElementById('custom-cron').value || '0 9 * * 1';
+      preview = `Custom: ${expr}`;
+    }
+    document.getElementById('cron-expression-input').value = expr;
+    document.getElementById('cron-preview').textContent    = preview;
+  }
+
+  // ── Table actions (AJAX) ──────────────────────────────────────────────────
+  async function runSearch(searchId) {
+    const statusCell = document.getElementById(`run-status-${searchId}`);
+    statusCell.innerHTML = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-blue-900/50 text-blue-400">
+      <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>Running</span>`;
+
+    try {
+      const resp = await fetch(`/apify/search/${searchId}/run/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      });
+      const data = await resp.json();
+      if (data.ok && data.run_id) {
+        // Poll the run until Apify finishes → webhook fires → TaskJob created → switch to task polling
+        startRunPolling(searchId, data.run_id);
+      } else {
+        statusCell.innerHTML = `<span class="text-xs text-red-400">${data.error || 'Failed'}</span>`;
+      }
+    } catch (e) {
+      statusCell.innerHTML = `<span class="text-xs text-red-400">Request failed</span>`;
+    }
+  }
+
+  async function deleteSearch(searchId) {
+    if (!confirm('Delete this saved search?')) return;
+    try {
+      const resp = await fetch(`/apify/search/${searchId}/delete/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      });
+      if ((await resp.json()).ok) {
+        document.getElementById(`search-row-${searchId}`).remove();
+      }
+    } catch (e) {}
+  }
+
+  async function toggleSchedule(searchId) {
+    try {
+      const resp = await fetch(`/apify/search/${searchId}/toggle-schedule/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        const btn = document.getElementById(`sched-toggle-${searchId}`);
+        btn.textContent = data.is_active ? 'Pause' : 'Resume';
+      }
+    } catch (e) {}
+  }
+
+  // ── Task-based progress polling ───────────────────────────────────────────
+  // Initial task state from server (search_pk → task job dict)
+  const TASK_JOBS = {{ task_jobs_json|safe }};
+
+  const _taskPollers = {};  // searchId → intervalId
+  const _runPollers  = {};  // searchId → intervalId (legacy: waiting for Apify to finish)
+
+  // ── Legacy run polling (while Apify is processing — before webhook fires) ──
+  function startRunPolling(searchId, runId) {
+    if (_runPollers[searchId]) clearInterval(_runPollers[searchId]);
+    _runPollers[searchId] = setInterval(() => pollRunStatus(searchId, runId), 5000);
+  }
+
+  async function pollRunStatus(searchId, runId) {
+    try {
+      const resp = await fetch(`/apify/run-status/${runId}/`);
+      const data = await resp.json();
+      if (data.task_job_id) {
+        // Webhook has fired — switch to task polling
+        clearInterval(_runPollers[searchId]);
+        delete _runPollers[searchId];
+        startTaskPolling(searchId, data.task_job_id);
+      } else if (['SUCCEEDED', 'FAILED', 'ABORTED'].includes(data.status)) {
+        clearInterval(_runPollers[searchId]);
+        delete _runPollers[searchId];
+        _renderApifyStatus(searchId, data);
+      }
+      // RUNNING (Apify still processing) — keep polling, show spinner
+    } catch (e) {}
+  }
+
+  function _renderApifyStatus(searchId, data) {
+    const STATUS_STYLE = {
+      SUCCEEDED: 'bg-emerald-900/50 text-emerald-400',
+      FAILED:    'bg-red-900/50 text-red-400',
+      RUNNING:   'bg-blue-900/50 text-blue-400',
+      ABORTED:   'bg-zinc-800 text-zinc-500',
+    };
+    const cls   = STATUS_STYLE[data.status] || 'bg-zinc-800 text-zinc-500';
+    const label = data.status.charAt(0) + data.status.slice(1).toLowerCase();
+    let html = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold ${cls}">${label}</span>`;
+    if (data.error_message) {
+      const esc = data.error_message.replace(/'/g, "\\'");
+      html += `<div class="flex items-center gap-1.5 mt-1">
+        <p class="text-xs text-red-400 max-w-xs truncate">${data.error_message.substring(0, 60)}</p>
+        <button type="button" onclick="copyError(this,'${esc}')" class="shrink-0 text-zinc-500 hover:text-white transition" title="Copy full error">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+        </button></div>`;
+    }
+    document.getElementById(`run-status-${searchId}`).innerHTML = html;
+  }
+
+  // ── Task polling (after webhook fires — showing import/email progress) ────
+  function startTaskPolling(searchId, jobId) {
+    if (_taskPollers[searchId]) clearInterval(_taskPollers[searchId]);
+    _pollTask(searchId, jobId);  // immediate first poll
+    _taskPollers[searchId] = setInterval(() => _pollTask(searchId, jobId), 2000);
+  }
+
+  async function _pollTask(searchId, jobId) {
+    try {
+      const resp = await fetch(`/api/tasks/${jobId}/status/`);
+      const data = await resp.json();
+      _renderTaskProgress(searchId, data);
+      if (['succeeded', 'failed'].includes(data.status)) {
+        clearInterval(_taskPollers[searchId]);
+        delete _taskPollers[searchId];
+      }
+    } catch (e) {}
+  }
+
+  function _renderTaskProgress(searchId, job) {
+    const statusCell = document.getElementById(`run-status-${searchId}`);
+    const leadsCell  = document.getElementById(`run-leads-${searchId}`);
+
+    if (job.status === 'failed') {
+      statusCell.innerHTML = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-red-900/50 text-red-400">Failed</span>
+        <p class="text-xs text-red-400 mt-1 max-w-xs truncate">${job.error_message.substring(0, 80)}</p>`;
+      return;
+    }
+
+    if (job.status === 'succeeded') {
+      statusCell.innerHTML = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-900/50 text-emerald-400">Succeeded</span>`;
+      if (leadsCell) leadsCell.textContent = job.leads_imported.toLocaleString() || '—';
+      return;
+    }
+
+    // pending / running — show two-phase progress bar
+    let pct   = 0;
+    let label = 'Starting…';
+
+    if (job.phase === 'importing') {
+      pct   = job.leads_total > 0 ? Math.round(job.leads_imported / job.leads_total * 50) : 0;
+      label = `Importing ${job.leads_imported.toLocaleString()}${job.leads_total > 0 ? ' / ' + job.leads_total.toLocaleString() : ''} leads`;
+    } else if (job.phase === 'emailing') {
+      const done = job.emails_sent + job.emails_skipped;
+      pct   = job.emails_total > 0 ? 50 + Math.round(done / job.emails_total * 50) : 50;
+      label = `Emailing ${done.toLocaleString()} / ${job.emails_total.toLocaleString()}`;
+      if (leadsCell) leadsCell.textContent = job.leads_imported.toLocaleString() || '—';
+    }
+
+    statusCell.innerHTML = `
+      <div class="min-w-40 space-y-1">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs text-zinc-400 truncate">${label}</span>
+          <span class="text-xs text-zinc-500 shrink-0">${pct}%</span>
+        </div>
+        <div class="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+          <div class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width:${pct}%"></div>
+        </div>
+        <div class="flex gap-2 text-xs text-zinc-600">
+          <span>Phase 1: import</span>
+          <span class="${pct >= 50 ? 'text-blue-400' : ''}">Phase 2: email</span>
+        </div>
+      </div>`;
+  }
+
+  function copyError(btn, msg) {
+    navigator.clipboard.writeText(msg).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+      setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    });
+  }
+
+  // ── Init on page load ─────────────────────────────────────────────────────
+  // Resume task polling for any active jobs from the server
+  Object.entries(TASK_JOBS).forEach(([searchId, job]) => {
+    if (['pending', 'running'].includes(job.status)) {
+      startTaskPolling(parseInt(searchId), job.id);
+      _renderTaskProgress(searchId, job);
+    }
+  });
+  // Legacy: start run polling for any RUNNING Apify rows that don't yet have a TaskJob
+  document.querySelectorAll('[data-run-id][data-status="RUNNING"]').forEach(el => {
+    const row = el.closest('tr');
+    if (!row) return;
+    const searchId = row.id.replace('search-row-', '');
+    if (!TASK_JOBS[searchId]) {
+      startRunPolling(searchId, el.dataset.runId);
+    }
+  });
+</script>
+{% endblock %}

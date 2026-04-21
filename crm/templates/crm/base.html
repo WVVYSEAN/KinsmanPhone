@@ -1,0 +1,965 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}WVVYReach{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{% static 'crm/wvvy.css' %}">
+</head>
+<body class="texture-noise text-white antialiased min-h-screen">
+
+  <header class="wvvy-nav px-6 py-3.5 flex items-center justify-between">
+    {% block header_left %}
+    <div class="flex items-center gap-3">
+      {% if active_workspace and active_workspace.logo %}
+      <img src="{{ active_workspace.logo.url }}" alt="{{ active_workspace.name }}" class="h-7 w-auto object-contain rounded">
+      {% else %}
+      <span class="text-xl font-bold tracking-tight"><span class="wvvy-logo-wvvy">WVVY</span><span class="wvvy-logo-reach">Reach</span></span>
+      {% endif %}
+      <span style="color:var(--border-default)">|</span>
+      <span style="color:var(--text-tertiary);font-size:0.8125rem;font-weight:500;">CRM Dashboard</span>
+    </div>
+    {% endblock %}
+    <div class="flex items-center gap-4">
+      {% if active_workspace %}
+      <span class="wvvy-workspace-pill">{{ active_workspace.name }}</span>
+      {% if is_master %}
+      <a href="/workspaces/" style="font-size:0.6875rem;color:var(--text-tertiary);" class="hover:text-white transition">[switch]</a>
+      {% endif %}
+      <span style="color:var(--border-subtle)">|</span>
+      {% endif %}
+      <a href="/" class="wvvy-nav-link">Home</a>
+      <a href="/leads/advanced-search/" class="wvvy-nav-link">Advanced Search</a>
+      <a href="/drafts/" class="wvvy-nav-link" style="position:relative">
+        Drafts{% if pending_drafts_count %}<span style="position:absolute;top:-4px;right:-6px;background:var(--cyan);color:#0f1117;font-size:0.6rem;font-weight:800;border-radius:99px;padding:1px 4px;line-height:1.4;">{{ pending_drafts_count }}</span>{% endif %}
+      </a>
+      <a href="/settings/" class="wvvy-nav-link">Settings</a>
+      {% if is_master %}
+      <a href="/master/" style="font-size:0.8125rem;font-weight:600;color:var(--amber);letter-spacing:0.06em;text-transform:uppercase;text-decoration:none;" class="transition hover:opacity-80">Master</a>
+      {% endif %}
+      <span style="color:var(--border-subtle)">|</span>
+      <span style="font-size:0.8125rem;color:var(--text-tertiary);">{{ request.user.first_name|default:request.user.email }}</span>
+      <form method="post" action="/auth/logout/" style="display:inline">{% csrf_token %}<button type="submit" class="wvvy-nav-link" style="background:none;border:none;cursor:pointer;padding:0">Sign out</button></form>
+    </div>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <!-- ═══════════════ HISTORY MODAL ═══════════════ -->
+  <div id="history-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeModal()"></div>
+
+    <div class="relative wvvy-modal-panel w-full max-w-2xl max-h-[90vh] flex flex-col">
+
+      <!-- modal header -->
+      <div id="modal-header" class="px-6 pt-5 pb-4 flex-shrink-0" style="border-bottom:1px solid var(--border-subtle);">
+        <div class="animate-pulse space-y-2">
+          <div class="h-5 rounded w-48 anim-shimmer"></div>
+          <div class="h-3 rounded w-64 anim-shimmer"></div>
+        </div>
+      </div>
+
+      <!-- modal body (scrollable) -->
+      <div class="overflow-y-auto flex-1 px-6 py-4 space-y-1">
+
+        <!-- ── Contact History ── -->
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 class="wvvy-section-label">Contact History</h3>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button id="btn-send-email" onclick="toggleEmailForm()"
+                    class="hidden wvvy-btn-ghost" style="font-size:0.75rem;padding:0.25rem 0.75rem;">
+              Send Email
+            </button>
+            <button id="btn-mark-replied" onclick="markReplied()"
+                    class="hidden wvvy-btn-ghost" style="font-size:0.75rem;padding:0.25rem 0.75rem;"
+                    title="Log that this contact replied to your email">
+              ↩ Mark Replied
+            </button>
+            <button onclick="toggleAddForm()" class="wvvy-btn-add">
+              + Log Touchpoint
+            </button>
+          </div>
+        </div>
+
+        <!-- email compose form -->
+        <div id="modal-email-form" class="hidden mb-4 rounded-xl p-4" style="border:1px solid var(--border-default);background:var(--bg-card)">
+          <p class="wvvy-section-label mb-1">Send Email</p>
+          <p id="email-to-display" class="text-xs mb-3" style="color:var(--text-tertiary)"></p>
+          <input id="email-subject" type="text" placeholder="Subject (required)"
+                 class="wvvy-input mb-3" />
+          <textarea id="email-body" placeholder="Message (required)" rows="5"
+                    class="wvvy-input mb-3 resize-none"></textarea>
+          <div class="flex items-center justify-end gap-3">
+            <button onclick="toggleEmailForm()" class="wvvy-btn-ghost" style="font-size:0.8125rem;">Cancel</button>
+            <button onclick="submitEmail()" class="wvvy-btn-primary" style="font-size:0.8125rem;">Send</button>
+          </div>
+          <p id="email-error" class="hidden text-xs text-red-400 mt-2"></p>
+        </div>
+
+        <!-- add touchpoint form -->
+        <div id="modal-add-form" class="hidden mb-4 rounded-xl p-4" style="border:1px solid var(--border-default);background:var(--bg-card)">
+          <p class="wvvy-section-label mb-3">New Touchpoint</p>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <select id="tp-type" class="wvvy-input">
+              <option value="">Type…</option>
+              <option value="email">Email Sent</option>
+              <option value="call">Call</option>
+              <option value="meeting">Meeting</option>
+              <option value="event">Event</option>
+              <option value="linkedin">LinkedIn Interaction</option>
+              <option value="proposal">Proposal Sent</option>
+              <option value="product_launch">Product Launch</option>
+              <option value="other">Other</option>
+            </select>
+            <input id="tp-date" type="date" class="wvvy-input" />
+          </div>
+          <input id="tp-summary" type="text" placeholder="Summary (required)" class="wvvy-input mb-3" />
+          <textarea id="tp-notes" placeholder="Notes (optional)" rows="2"
+                    class="wvvy-input mb-3 resize-none"></textarea>
+          <div class="flex items-center gap-3">
+            <input id="tp-logged-by" type="text" placeholder="Logged by" class="wvvy-input" style="flex:1" />
+            <button onclick="submitTouchpoint()" class="wvvy-btn-primary" style="font-size:0.8125rem;">Save</button>
+            <button onclick="toggleAddForm()" class="wvvy-btn-ghost" style="font-size:0.8125rem;">Cancel</button>
+          </div>
+          <p id="tp-error" class="hidden text-xs text-red-400 mt-2"></p>
+        </div>
+
+        <!-- timeline -->
+        <div id="modal-timeline"></div>
+
+        <!-- ── Drip Campaign ── (JS-rendered, contacts only) -->
+        <div id="modal-drip"></div>
+
+        <!-- ── Notes ── (JS-rendered) -->
+        <div id="modal-notes"></div>
+
+      </div>
+
+      <!-- modal footer -->
+      <div class="px-6 py-3 flex-shrink-0 flex justify-end" style="border-top:1px solid var(--border-subtle)">
+        <button onclick="closeModal()" class="wvvy-btn-ghost" style="font-size:0.8125rem;">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save indicator toast -->
+  <div id="save-indicator"
+       class="hidden fixed bottom-6 right-6 z-[60] text-xs font-medium px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all"
+       style="background:var(--bg-overlay);border:1px solid var(--border-default);box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 0 1px var(--border-subtle);color:var(--text-primary)">
+    <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+    </svg>
+    <span id="save-indicator-text">Saved</span>
+  </div>
+
+  <script>
+    // ─── Heat metadata (mirrors Python HEAT_META) ────────────────────────────
+    const HEAT_OPTIONS = [
+      { key: 'cold',    label: 'Cold',           bg: '#f1f5f9', color: '#64748b', dot: '#94a3b8' },
+      { key: 'medium',  label: 'Medium',         bg: '#fff7ed', color: '#ea580c', dot: '#f97316' },
+      { key: 'warm',    label: 'Warm',           bg: '#fff1f2', color: '#e11d48', dot: '#f43f5e' },
+      { key: 'active',  label: 'Active Client',  bg: '#d1fae5', color: '#065f46', dot: '#10b981' },
+      { key: 'dormant', label: 'Dormant Client', bg: '#e5e7eb', color: '#6b7280', dot: '#9ca3af' },
+    ];
+
+    // ─── Stage metadata (mirrors Python STAGE_META) ───────────────────────────
+    const STAGE_OPTIONS = [
+      { key: 'cold_lead',      label: 'Cold Lead',      bg: '#f3f4f6', color: '#374151' },
+      { key: 'warm_lead',      label: 'Warm Lead',      bg: '#ffedd5', color: '#c2410c' },
+      { key: 'discovery_call', label: 'Discovery Call', bg: '#e0f2fe', color: '#0369a1' },
+      { key: 'proposal',       label: 'Proposal',       bg: '#e0e7ff', color: '#4338ca' },
+      { key: 'negotiation',    label: 'Negotiation',    bg: '#fef3c7', color: '#92400e' },
+      { key: 'closed_won',     label: 'Closed Won',     bg: '#d1fae5', color: '#065f46' },
+      { key: 'closed_lost',    label: 'Closed Lost',    bg: '#fee2e2', color: '#dc2626' },
+    ];
+
+    // ─── CSRF helper ──────────────────────────────────────────────────────────
+    function getCsrf() {
+      return document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+    }
+
+    // ─── Modal state ──────────────────────────────────────────────────────────
+    let _modalPk        = null;
+    let _modalModelType = null;
+    let _modalEmail     = '';
+
+    function openHistory(pk, modelType) {
+      _modalPk        = pk;
+      _modalModelType = modelType;
+
+      document.getElementById('modal-add-form').classList.add('hidden');
+      document.getElementById('modal-email-form').classList.add('hidden');
+      document.getElementById('btn-send-email').classList.add('hidden');
+      document.getElementById('btn-mark-replied').classList.add('hidden');
+      document.getElementById('modal-notes').innerHTML    = '';
+      document.getElementById('modal-drip').innerHTML     = '';
+      document.getElementById('modal-timeline').innerHTML =
+        `<div class="py-6 text-center text-sm" style="color:var(--text-tertiary)">Loading…</div>`;
+      document.getElementById('modal-header').innerHTML =
+        '<div class="animate-pulse space-y-2">' +
+        '<div class="h-5 rounded w-48 anim-shimmer"></div>' +
+        '<div class="h-3 rounded w-64 anim-shimmer"></div></div>';
+
+      document.getElementById('history-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      fetch(`/api/history/${modelType}/${pk}/`)
+        .then(r => r.json())
+        .then(data => {
+          renderModalHeader(data.info);
+          renderTimeline(data.touchpoints, data.email_threads || []);
+          if (modelType === 'contact') renderDripSection(pk);
+          renderNotes(data.info);
+        })
+        .catch(() => {
+          document.getElementById('modal-timeline').innerHTML =
+            '<div class="py-6 text-center text-red-400 text-sm">Failed to load history.</div>';
+        });
+    }
+
+    function closeModal() {
+      document.getElementById('history-modal').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // ─── Modal header ─────────────────────────────────────────────────────────
+    function renderModalHeader(info) {
+      const stageOpts = STAGE_OPTIONS.map(s =>
+        `<option value="${s.key}" ${s.key === info.stage_key ? 'selected' : ''}>${s.label}</option>`
+      ).join('');
+
+      const current = STAGE_OPTIONS.find(s => s.key === info.stage_key) || STAGE_OPTIONS[0];
+
+      const stageSelectHtml = `
+        <div class="inline-flex items-center gap-1.5">
+          <span class="text-xs font-medium" style="color:var(--text-tertiary)">Stage</span>
+          <svg class="w-3 h-3" style="color:var(--text-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z"/>
+          </svg>
+          <div class="relative inline-flex items-center">
+            <select id="modal-stage-select"
+                    class="text-xs font-bold pl-2.5 pr-6 py-1 rounded-md border border-transparent outline-none cursor-pointer appearance-none transition-all hover:border-zinc-600"
+                    style="background:${current.bg}; color:${current.color}"
+                    onchange="saveStage(this.value)">
+              ${stageOpts}
+            </select>
+            <svg class="pointer-events-none absolute right-1.5 w-3 h-3 shrink-0" style="color:${current.color}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </div>`;
+
+      const emailLink = info.email
+        ? `<a href="mailto:${info.email}" style="color:var(--cyan);opacity:0.8;text-decoration:none" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">${escHtml(info.email)}</a>`
+        : '';
+      const liLink = info.linkedin
+        ? `<a href="${info.linkedin}" target="_blank" style="color:var(--cyan);opacity:0.8;text-decoration:none;display:inline-flex;align-items:center;gap:0.25rem" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">LinkedIn<svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>`
+        : '';
+      const siteLink = info.website
+        ? `<a href="${info.website}" target="_blank" style="color:var(--cyan);opacity:0.8;text-decoration:none" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">${escHtml(info.website.replace(/https?:\/\//, ''))}</a>`
+        : '';
+
+      const metaItems = [emailLink, liLink, siteLink,
+        info.location && `<span style="color:var(--text-secondary)">${escHtml(info.location)}</span>`,
+        info.owner    && `<span style="color:var(--text-secondary)">Owner: ${escHtml(info.owner)}</span>`,
+        info.size     && `<span style="color:var(--text-secondary)">${escHtml(info.size)}</span>`,
+        info.funding  && `<span style="color:var(--text-secondary)">${escHtml(info.funding)}</span>`,
+      ].filter(Boolean);
+
+      // ── Heat selector ──
+      const heatCurrent = HEAT_OPTIONS.find(h => h.key === info.heat) || HEAT_OPTIONS[0];
+      const heatOpts = HEAT_OPTIONS.map(h =>
+        `<option value="${h.key}" ${h.key === info.heat ? 'selected' : ''}>${h.label}</option>`
+      ).join('');
+      const heatResetBtn = info.heat_override
+        ? `<button onclick="resetHeat()" style="font-size:0.6875rem;color:var(--text-tertiary);text-decoration:underline;text-underline-offset:2px;transition:color 150ms ease" onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-tertiary)'">Reset to auto</button>`
+        : '';
+      const heatSelectHtml = `
+        <div class="inline-flex items-center gap-1.5">
+          <span class="text-xs font-medium" style="color:var(--text-tertiary)">Heat</span>
+          <svg class="w-3 h-3" style="color:var(--text-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z"/>
+          </svg>
+          <div class="relative inline-flex items-center">
+            <select id="modal-heat-select"
+                    class="text-xs font-bold pl-2.5 pr-6 py-1 rounded-md border border-transparent outline-none cursor-pointer appearance-none transition-all hover:border-zinc-600"
+                    style="background:${heatCurrent.bg}; color:${heatCurrent.color}"
+                    onchange="saveHeat(this.value)">
+              ${heatOpts}
+            </select>
+            <svg id="modal-heat-chevron" class="pointer-events-none absolute right-1.5 w-3 h-3 shrink-0" style="color:${heatCurrent.color}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+          <span id="heat-manual-badge" class="${info.heat_override ? '' : 'hidden'} text-xs italic" style="color:var(--text-tertiary)">Manual</span>
+          ${heatResetBtn}
+        </div>
+        <span class="text-xs ml-1" style="color:var(--text-tertiary)">(${info.heat_score}/100)</span>`;
+
+      _modalEmail = info.email || '';
+      const emailBtn   = document.getElementById('btn-send-email');
+      const repliedBtn = document.getElementById('btn-mark-replied');
+      if (emailBtn)   emailBtn.classList.toggle('hidden', !_modalEmail);
+      if (repliedBtn) repliedBtn.classList.toggle('hidden', info.model_type !== 'contact');
+
+      document.getElementById('modal-header').innerHTML = `
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap mb-1">
+              <h2 class="text-lg font-bold text-white">${escHtml(info.name)}</h2>
+              ${stageSelectHtml}
+            </div>
+            <div class="flex items-center gap-4 flex-wrap mb-2">
+              ${heatSelectHtml}
+            </div>
+            ${info.subtitle ? `<p class="text-sm text-zinc-400 mb-2">${escHtml(info.subtitle)}</p>` : ''}
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">${metaItems.join('')}</div>
+          </div>
+          <button onclick="closeModal()" class="text-zinc-500 hover:text-white shrink-0 mt-0.5 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>`;
+    }
+
+    // ─── Stage save ───────────────────────────────────────────────────────────
+    function saveStage(newStage) {
+      const sel = document.getElementById('modal-stage-select');
+      const stageData = STAGE_OPTIONS.find(s => s.key === newStage);
+      if (stageData && sel) {
+        sel.style.background = stageData.bg;
+        sel.style.color      = stageData.color;
+        const chevron = sel.nextElementSibling;
+        if (chevron) chevron.style.color = stageData.color;
+      }
+
+      fetch(`/api/update/${_modalModelType}/${_modalPk}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ stage: newStage }),
+      })
+        .then(r => r.json())
+        .then(() => {
+          showToast('Stage updated — reloading…');
+          setTimeout(() => location.reload(), 900);
+        })
+        .catch(() => showToast('Save failed', true));
+    }
+
+    // ─── Heat save / reset ────────────────────────────────────────────────────
+    function saveHeat(newHeat) {
+      const sel     = document.getElementById('modal-heat-select');
+      const chevron = document.getElementById('modal-heat-chevron');
+      const badge   = document.getElementById('heat-manual-badge');
+      const heatData = HEAT_OPTIONS.find(h => h.key === newHeat);
+      if (heatData && sel) {
+        sel.style.background = heatData.bg;
+        sel.style.color      = heatData.color;
+        if (chevron) chevron.style.color = heatData.color;
+      }
+      if (badge) badge.classList.remove('hidden');
+
+      fetch(`/api/update/${_modalModelType}/${_modalPk}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ heat: newHeat }),
+      })
+        .then(r => r.json())
+        .then(() => showToast('Heat updated'))
+        .catch(() => showToast('Save failed', true));
+    }
+
+    function resetHeat() {
+      fetch(`/api/update/${_modalModelType}/${_modalPk}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ heat_reset: true }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          const sel     = document.getElementById('modal-heat-select');
+          const chevron = document.getElementById('modal-heat-chevron');
+          const badge   = document.getElementById('heat-manual-badge');
+          const heatData = HEAT_OPTIONS.find(h => h.key === data.heat);
+          if (sel && heatData) {
+            sel.value            = data.heat;
+            sel.style.background = heatData.bg;
+            sel.style.color      = heatData.color;
+            if (chevron) chevron.style.color = heatData.color;
+          }
+          if (badge) badge.classList.add('hidden');
+          showToast('Reset to auto');
+        })
+        .catch(() => showToast('Save failed', true));
+    }
+
+    // ─── Notes section ────────────────────────────────────────────────────────
+    function renderNotes(info) {
+      document.getElementById('modal-notes').innerHTML = `
+        <div class="mt-4 pt-4" style="border-top:1px solid var(--border-subtle)">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="wvvy-section-label">Notes</h3>
+            <button onclick="saveNotes()"
+                    style="font-size:0.75rem;font-weight:600;color:var(--cyan);transition:opacity 150ms ease;" onmouseenter="this.style.opacity='0.75'" onmouseleave="this.style.opacity='1'">
+              Save notes
+            </button>
+          </div>
+          <textarea id="notes-textarea" rows="4" placeholder="Add notes about this contact…"
+                    class="wvvy-input resize-none leading-relaxed" style="border-radius:0.75rem;padding:0.625rem 0.75rem;"
+          >${escHtml(info.notes || '')}</textarea>
+        </div>`;
+    }
+
+    function saveNotes() {
+      const notes = document.getElementById('notes-textarea')?.value ?? '';
+      fetch(`/api/update/${_modalModelType}/${_modalPk}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ notes }),
+      })
+        .then(r => r.json())
+        .then(() => showToast('Notes saved'))
+        .catch(() => showToast('Save failed', true));
+    }
+
+    // ─── Drip Campaign ───────────────────────────────────────────────────────
+    let _dripState = {};  // cache of drip data per contact pk
+
+    function renderDripSection(contactPk) {
+      const el = document.getElementById('modal-drip');
+      el.innerHTML = `
+        <div class="mt-4 pt-4" style="border-top:1px solid var(--border-subtle)">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="wvvy-section-label">Drip Campaign</h3>
+            <span id="drip-loading" class="text-xs" style="color:var(--text-tertiary)">Loading…</span>
+          </div>
+          <div id="drip-body"></div>
+        </div>`;
+
+      fetch(`/api/drip/${contactPk}/list/`)
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('drip-loading').textContent = '';
+          _dripState[contactPk] = data;
+          _renderDripBody(contactPk, data);
+        })
+        .catch(() => {
+          document.getElementById('drip-loading').textContent = 'Failed to load.';
+        });
+    }
+
+    function _renderDripBody(contactPk, data) {
+      const el = document.getElementById('drip-body');
+      if (!el) return;
+
+      const stopped = data.drip_sequence_stopped;
+      const paused  = data.drip_paused;
+      const sent    = data.drip_followups_sent || 0;
+      const pending = (data.drip_emails || []).find(d => d.status === 'pending');
+
+      // Status pill + pause toggle
+      let statusHtml = '';
+      if (stopped) {
+        statusHtml = `<span class="wvvy-badge wvvy-badge-muted">Stopped</span>`;
+      } else if (paused) {
+        statusHtml = `<span class="wvvy-badge wvvy-badge-amber">Paused</span>`;
+      } else {
+        statusHtml = `<span class="wvvy-badge wvvy-badge-cyan">Active</span>`;
+      }
+
+      const pauseLabel  = paused ? 'Resume Drip' : 'Pause Drip';
+      const pauseAction = stopped ? '' : `
+        <button onclick="toggleDripPause(${contactPk})"
+                class="wvvy-btn-ghost" style="font-size:0.75rem;padding:0.25rem 0.75rem;">${pauseLabel}</button>`;
+
+      const generateBtn = (!stopped && !pending) ? `
+        <button id="drip-gen-btn" onclick="dripGenerate(${contactPk})"
+                class="wvvy-btn-primary" style="font-size:0.75rem;padding:0.25rem 0.75rem;">Generate Draft</button>` : '';
+
+      el.innerHTML = `
+        <div class="flex items-center gap-2 flex-wrap mb-3">
+          ${statusHtml}
+          <span class="text-xs" style="color:var(--text-tertiary)">${sent} sent</span>
+          <div class="ml-auto flex items-center gap-2">
+            ${pauseAction}
+            ${generateBtn}
+          </div>
+        </div>
+        <div id="drip-emails-list"></div>`;
+
+      _renderDripEmailList(contactPk, data.drip_emails || []);
+    }
+
+    function _renderDripEmailList(contactPk, emails) {
+      const el = document.getElementById('drip-emails-list');
+      if (!el) return;
+      if (!emails.length) {
+        el.innerHTML = `<p class="text-xs py-2" style="color:var(--text-tertiary)">No drip emails yet. Click <strong>Generate Draft</strong> to create the first one.</p>`;
+        return;
+      }
+      el.innerHTML = emails.map(d => _renderDripEmailRow(contactPk, d)).join('');
+    }
+
+    function _renderDripEmailRow(contactPk, d) {
+      const statusColors = {
+        pending:  'wvvy-badge wvvy-badge-amber',
+        approved: 'wvvy-badge wvvy-badge-cyan',
+        sent:     'wvvy-badge wvvy-badge-cyan',
+        rejected: 'wvvy-badge wvvy-badge-muted',
+      };
+      const badge = statusColors[d.status] || 'wvvy-badge wvvy-badge-muted';
+      const ts = d.sent_at
+        ? new Date(d.sent_at).toLocaleDateString('en-US', {month:'short', day:'numeric'})
+        : (d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '');
+
+      const bodyPreviewId = `drip-body-${d.id}`;
+      const editId        = `drip-edit-${d.id}`;
+      const editSubjId    = `drip-edit-subj-${d.id}`;
+      const editBodyId    = `drip-edit-body-${d.id}`;
+
+      const actionBtns = d.status === 'pending' ? `
+        <div class="flex gap-2 mt-2 flex-wrap">
+          <button onclick="dripSend(${contactPk}, ${d.id})"
+                  class="wvvy-btn-primary" style="font-size:0.6875rem;padding:0.2rem 0.6rem;">Approve &amp; Send</button>
+          <button onclick="toggleDripEdit(${d.id})"
+                  class="wvvy-btn-ghost" style="font-size:0.6875rem;padding:0.2rem 0.6rem;">Edit</button>
+          <button onclick="dripReject(${contactPk}, ${d.id})"
+                  class="wvvy-btn-ghost" style="font-size:0.6875rem;padding:0.2rem 0.6rem;color:var(--rose)">Reject</button>
+        </div>
+        <div id="${editId}" class="hidden mt-2 space-y-2">
+          <input id="${editSubjId}" type="text" value="${escHtml(d.subject)}"
+                 class="wvvy-input text-xs" placeholder="Subject" />
+          <textarea id="${editBodyId}" rows="5"
+                    class="wvvy-input text-xs resize-none">${escHtml(d.body)}</textarea>
+          <div class="flex gap-2">
+            <button onclick="dripSaveEdit(${contactPk}, ${d.id})"
+                    class="wvvy-btn-primary" style="font-size:0.6875rem;padding:0.2rem 0.6rem;">Save Edit</button>
+            <button onclick="toggleDripEdit(${d.id})"
+                    class="wvvy-btn-ghost" style="font-size:0.6875rem;padding:0.2rem 0.6rem;">Cancel</button>
+          </div>
+        </div>` : '';
+
+      return `
+        <div class="py-3 last:border-0" style="border-bottom:1px solid var(--border-subtle)">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2 flex-wrap min-w-0">
+              <span class="${badge} shrink-0">Email #${d.sequence_number}</span>
+              <p class="text-sm font-medium truncate" style="color:var(--text-primary)">${escHtml(d.subject)}</p>
+            </div>
+            <span class="text-xs shrink-0" style="color:var(--text-tertiary)">${ts}</span>
+          </div>
+          <div id="${bodyPreviewId}" class="hidden mt-2 text-xs whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto rounded-lg p-3"
+               style="color:var(--text-secondary);background:var(--bg-card);border:1px solid var(--border-subtle)">${escHtml(d.body)}</div>
+          <button onclick="document.getElementById('${bodyPreviewId}').classList.toggle('hidden')"
+                  style="font-size:0.6875rem;color:var(--text-tertiary);margin-top:0.25rem;transition:color 150ms ease"
+                  onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-tertiary)'">Preview ▾</button>
+          ${actionBtns}
+        </div>`;
+    }
+
+    function dripGenerate(contactPk) {
+      const btn = document.getElementById('drip-gen-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+      fetch(`/api/drip/${contactPk}/generate/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showToast(data.error, true); if (btn) { btn.disabled = false; btn.textContent = 'Generate Draft'; } return; }
+          renderDripSection(contactPk);
+          showToast('Draft generated');
+        })
+        .catch(() => { showToast('Generate failed', true); if (btn) { btn.disabled = false; btn.textContent = 'Generate Draft'; } });
+    }
+
+    function toggleDripEdit(dripId) {
+      document.getElementById(`drip-edit-${dripId}`)?.classList.toggle('hidden');
+    }
+
+    function dripSaveEdit(contactPk, dripId) {
+      const subject = document.getElementById(`drip-edit-subj-${dripId}`)?.value.trim();
+      const body    = document.getElementById(`drip-edit-body-${dripId}`)?.value.trim();
+      if (!body) { showToast('Body cannot be empty', true); return; }
+      fetch(`/api/drip/email/${dripId}/save-edit/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ subject, body }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showToast(data.error, true); return; }
+          renderDripSection(contactPk);
+          showToast('Edit saved');
+        })
+        .catch(() => showToast('Save failed', true));
+    }
+
+    function dripSend(contactPk, dripId) {
+      fetch(`/api/drip/email/${dripId}/send/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showToast(data.error, true); return; }
+          renderDripSection(contactPk);
+          showToast('Drip email sent');
+        })
+        .catch(() => showToast('Send failed', true));
+    }
+
+    function dripReject(contactPk, dripId) {
+      fetch(`/api/drip/email/${dripId}/reject/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showToast(data.error, true); return; }
+          renderDripSection(contactPk);
+          showToast('Draft rejected');
+        })
+        .catch(() => showToast('Reject failed', true));
+    }
+
+    function toggleDripPause(contactPk) {
+      fetch(`/api/drip/${contactPk}/pause/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showToast(data.error, true); return; }
+          renderDripSection(contactPk);
+          showToast(data.paused ? 'Drip paused' : 'Drip resumed');
+        })
+        .catch(() => showToast('Failed', true));
+    }
+
+    // ─── Toast ────────────────────────────────────────────────────────────────
+    let _toastTimer = null;
+    function showToast(msg, isError = false) {
+      const el   = document.getElementById('save-indicator');
+      const text = document.getElementById('save-indicator-text');
+      text.textContent = msg;
+      el.style.background = isError ? '#450a0a' : '#18181b';
+      el.classList.remove('hidden');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => el.classList.add('hidden'), 2200);
+    }
+
+    // ─── Timeline ─────────────────────────────────────────────────────────────
+    const TP_COLORS = {
+      email:          'bg-blue-900 text-blue-300',
+      call:           'bg-green-900 text-green-300',
+      meeting:        'bg-indigo-900 text-indigo-300',
+      event:          'bg-purple-900 text-purple-300',
+      linkedin:       'bg-sky-900 text-sky-300',
+      proposal:       'bg-amber-900 text-amber-300',
+      product_launch: 'bg-pink-900 text-pink-300',
+      other:          'bg-zinc-800 text-zinc-400',
+    };
+
+    function renderTimeline(touchpoints, emailThreads) {
+      const el = document.getElementById('modal-timeline');
+
+      // Merge touchpoints and email threads into one chronological list
+      const items = [
+        ...touchpoints.map(tp => ({ _kind: 'touchpoint', _date: tp.date, ...tp })),
+        ...emailThreads.map(et => ({ _kind: 'email', _date: et.sent_at, ...et })),
+      ].sort((a, b) => (a._date < b._date ? 1 : -1)); // newest first
+
+      if (!items.length) {
+        el.innerHTML = `
+          <div class="py-8 text-center">
+            <p class="text-sm text-zinc-500">No history yet.</p>
+            <p class="text-xs text-zinc-600 mt-1">Click <strong class="text-zinc-400">+ Log Touchpoint</strong> to add the first one.</p>
+          </div>`;
+        return;
+      }
+      el.innerHTML = items.map(item =>
+        item._kind === 'email' ? renderEmailRow(item) : renderTouchpointRow(item)
+      ).join('');
+    }
+
+    function renderEmailRow(et) {
+      const isInbound = et.direction === 'inbound';
+      const badge     = isInbound
+        ? 'wvvy-badge wvvy-badge-cyan'
+        : 'wvvy-badge wvvy-badge-violet';
+      const label     = isInbound ? '&#8595; Received' : '&#8593; Sent';
+      const ts        = et.sent_at ? new Date(et.sent_at).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit', hour12:true}) : '';
+      const bodyId    = `email-body-${Math.random().toString(36).slice(2)}`;
+      const bodyHtml  = et.body ? `
+        <div id="${bodyId}" class="hidden mt-2 text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto rounded-lg p-3" style="color:var(--text-secondary);background:var(--bg-card);border:1px solid var(--border-subtle)">${escHtml(et.body)}</div>
+        <button onclick="document.getElementById('${bodyId}').classList.toggle('hidden')" style="font-size:0.6875rem;color:var(--text-tertiary);margin-top:0.25rem;transition:color 150ms ease" onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-tertiary)'">Read message ▾</button>` : '';
+      return `
+        <div class="flex gap-3 py-3 last:border-0" style="border-bottom:1px solid var(--border-subtle)">
+          <span class="${badge} shrink-0 h-fit mt-0.5">${label}</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-sm font-medium" style="color:var(--text-primary)">${escHtml(et.subject || '(no subject)')}</p>
+              <span class="text-xs shrink-0 mt-0.5" style="color:var(--text-tertiary)">${ts}</span>
+            </div>
+            ${bodyHtml}
+          </div>
+        </div>`;
+    }
+
+    function renderTouchpointRow(tp) {
+      const color = TP_COLORS[tp.type] || TP_COLORS.other;
+      return `
+        <div class="flex gap-3 py-3 last:border-0" style="border-bottom:1px solid var(--border-subtle)" data-tp-id="${tp.id}">
+          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${color} shrink-0 h-fit mt-0.5 whitespace-nowrap">
+            ${escHtml(tp.type_label)}
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-sm font-medium" style="color:var(--text-primary)">${escHtml(tp.summary || '—')}</p>
+              <span class="text-xs shrink-0 mt-0.5" style="color:var(--text-tertiary)">${formatDate(tp.date)}</span>
+            </div>
+            ${tp.notes     ? `<p class="text-xs mt-0.5" style="color:var(--text-secondary)">${escHtml(tp.notes)}</p>` : ''}
+            ${tp.logged_by ? `<p class="text-xs mt-1" style="color:var(--text-tertiary)">by ${escHtml(tp.logged_by)}</p>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function prependTouchpoint(tp) {
+      const el = document.getElementById('modal-timeline');
+      if (el.querySelector('.py-8')) el.innerHTML = '';
+      el.insertAdjacentHTML('afterbegin', renderTouchpointRow(tp));
+    }
+
+    // ─── Mark replied (one-click) ─────────────────────────────────────────────
+    function markReplied() {
+      fetch(`/api/reply/${_modalPk}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({}),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { showToast(data.error, true); return; }
+          prependTouchpoint(data.touchpoint);
+          showToast('Reply logged');
+        })
+        .catch(() => showToast('Failed to log reply', true));
+    }
+
+    // ─── Email compose ────────────────────────────────────────────────────────
+    function toggleEmailForm() {
+      const form = document.getElementById('modal-email-form');
+      if (form.classList.toggle('hidden') === false) {
+        document.getElementById('email-to-display').textContent = `To: ${_modalEmail}`;
+        document.getElementById('modal-add-form').classList.add('hidden');
+        document.getElementById('email-subject').focus();
+      }
+    }
+
+    function submitEmail() {
+      const subject = document.getElementById('email-subject').value.trim();
+      const body    = document.getElementById('email-body').value.trim();
+      const errEl   = document.getElementById('email-error');
+
+      if (!subject || !body) {
+        errEl.textContent = 'Subject and message are required.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      errEl.classList.add('hidden');
+
+      fetch(`/api/send-email/${_modalModelType}/${_modalPk}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ subject, body }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { errEl.textContent = data.error; errEl.classList.remove('hidden'); return; }
+          document.getElementById('modal-email-form').classList.add('hidden');
+          document.getElementById('email-subject').value = '';
+          document.getElementById('email-body').value    = '';
+          prependTouchpoint(data.touchpoint);
+          showToast('Email sent');
+        })
+        .catch(() => { errEl.textContent = 'Send failed. Please try again.'; errEl.classList.remove('hidden'); });
+    }
+
+    function toggleAddForm() {
+      const form = document.getElementById('modal-add-form');
+      if (form.classList.toggle('hidden') === false) {
+        document.getElementById('tp-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('tp-summary').focus();
+      }
+    }
+
+    function submitTouchpoint() {
+      const type      = document.getElementById('tp-type').value;
+      const date      = document.getElementById('tp-date').value;
+      const summary   = document.getElementById('tp-summary').value.trim();
+      const notes     = document.getElementById('tp-notes').value.trim();
+      const logged_by = document.getElementById('tp-logged-by').value.trim();
+      const errEl     = document.getElementById('tp-error');
+
+      if (!type || !date || !summary) {
+        errEl.textContent = 'Type, date, and summary are required.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      errEl.classList.add('hidden');
+
+      fetch(`/api/touchpoint/${_modalModelType}/${_modalPk}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ type, date, summary, notes, logged_by }),
+      })
+        .then(r => r.json())
+        .then(tp => {
+          prependTouchpoint(tp);
+          ['tp-type', 'tp-summary', 'tp-notes', 'tp-logged-by'].forEach(id => {
+            document.getElementById(id).value = '';
+          });
+          document.getElementById('modal-add-form').classList.add('hidden');
+          showToast('Touchpoint logged');
+        })
+        .catch(() => {
+          errEl.textContent = 'Save failed. Please try again.';
+          errEl.classList.remove('hidden');
+        });
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function formatDate(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return new Date(+y, +m - 1, +d).toLocaleDateString('en-US',
+        { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ─── Sort + filter engine ─────────────────────────────────────────────────
+    function initTable(tableId, filterBarId, dropdownCols) {
+      const table = document.getElementById(tableId);
+      const bar   = document.getElementById(filterBarId);
+      if (!table || !bar) return;
+
+      const tbody   = table.querySelector('tbody');
+      const headers = Array.from(table.querySelectorAll('thead th'));
+      let sortCol = -1, sortAsc = true, textQuery = '';
+      const dropVals = {};
+
+      const searchWrap = document.createElement('div');
+      searchWrap.className = 'flex items-center gap-2 flex-1 min-w-[160px] max-w-xs';
+      searchWrap.innerHTML =
+        `<svg class="w-4 h-4 text-zinc-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+         </svg>
+         <input type="text" placeholder="Search…"
+                class="w-full text-sm border-0 outline-none bg-transparent text-white placeholder-zinc-500"/>`;
+      bar.appendChild(searchWrap);
+      searchWrap.querySelector('input').addEventListener('input', e => {
+        textQuery = e.target.value.toLowerCase(); applyFilters();
+      });
+
+      dropdownCols.forEach(({ col, label }) => {
+        const values = [...new Set(
+          Array.from(tbody.querySelectorAll('tr'))
+               .map(r => r.cells[col]?.textContent.trim())
+               .filter(v => v && v !== '—')
+        )].sort();
+        if (values.length < 2) return;
+        dropVals[col] = '';
+        const sel = document.createElement('select');
+        sel.className = 'wvvy-filter-select';
+        sel.innerHTML = `<option value="">All ${label}</option>` +
+          values.map(v => `<option value="${v}">${v}</option>`).join('');
+        sel.addEventListener('change', e => { dropVals[col] = e.target.value; applyFilters(); });
+        bar.appendChild(sel);
+      });
+
+      const countEl = document.createElement('span');
+      countEl.className = 'text-xs text-zinc-500 ml-auto shrink-0';
+      bar.appendChild(countEl);
+
+      function refreshCount() {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const vis  = rows.filter(r => r.style.display !== 'none').length;
+        countEl.textContent = vis === rows.length
+          ? `${rows.length} record${rows.length !== 1 ? 's' : ''}`
+          : `${vis} of ${rows.length}`;
+      }
+      refreshCount();
+
+      function applyFilters() {
+        Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+          const ok = (!textQuery || row.textContent.toLowerCase().includes(textQuery)) &&
+            Object.entries(dropVals).every(([c, v]) => !v || row.cells[+c]?.textContent.trim() === v);
+          row.style.display = ok ? '' : 'none';
+        });
+        refreshCount();
+      }
+
+      headers.forEach((th, i) => {
+        th.classList.add('cursor-pointer', 'select-none');
+        const icon = document.createElement('span');
+        icon.className = 'sort-icon ml-1 text-xs';
+        icon.style.color = 'var(--text-tertiary)';
+        icon.textContent = '↕';
+        th.appendChild(icon);
+        th.addEventListener('mouseenter', () => { if (i !== sortCol) th.style.background = 'var(--bg-hover)'; });
+        th.addEventListener('mouseleave', () => { if (i !== sortCol) th.style.background = ''; });
+        th.addEventListener('click', () => {
+          sortAsc = sortCol === i ? !sortAsc : true;
+          sortCol = i;
+          const rows = Array.from(tbody.querySelectorAll('tr'));
+          rows.sort((a, b) => {
+            const av = a.cells[sortCol]?.textContent.trim() ?? '';
+            const bv = b.cells[sortCol]?.textContent.trim() ?? '';
+            const cmp = av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' });
+            return sortAsc ? cmp : -cmp;
+          });
+          rows.forEach(r => tbody.appendChild(r));
+          headers.forEach((h, j) => {
+            const ic = h.querySelector('.sort-icon');
+            if (!ic) return;
+            ic.textContent = j === sortCol ? (sortAsc ? '↑' : '↓') : '↕';
+            ic.style.color = j === sortCol ? 'var(--cyan)' : 'var(--text-tertiary)';
+            h.style.background = j === sortCol ? 'var(--bg-hover)' : '';
+          });
+        });
+      });
+    }
+
+    document.querySelectorAll('[data-init-table]').forEach(table => {
+      const colIndices   = (table.dataset.dropdownCols   || '').split(',').filter(Boolean).map(Number);
+      const colLabels    = (table.dataset.dropdownLabels || '').split(',').filter(Boolean);
+      const dropdownCols = colIndices.map((col, i) => ({ col, label: colLabels[i] || String(col) }));
+      initTable(table.id, table.dataset.filterBar, dropdownCols);
+    });
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

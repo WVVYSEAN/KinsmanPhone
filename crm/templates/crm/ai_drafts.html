@@ -1,0 +1,182 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}AI Drafts — WVVYReach{% endblock %}
+
+{% block content %}
+<style>
+  .draft-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: 0.875rem;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .draft-card:hover { border-color: rgba(0,232,200,0.18); }
+  .draft-card-accent {
+    height: 2px;
+    background: linear-gradient(90deg, transparent 5%, var(--cyan) 40%, var(--violet) 65%, transparent 95%);
+    opacity: 0.6;
+  }
+  .msg-bubble {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.625rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+  .msg-bubble.outbound {
+    background: var(--cyan-ghost);
+    border-color: var(--cyan-border);
+    color: var(--text-primary);
+  }
+  .draft-textarea {
+    width: 100%;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 0.625rem;
+    padding: 0.75rem 1rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .draft-textarea:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px var(--cyan-ghost);
+  }
+  .actioned { opacity: 0.45; pointer-events: none; }
+</style>
+
+<main class="max-w-3xl mx-auto px-6 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight" style="color:var(--text-primary)">AI Drafts</h1>
+      <p class="text-sm mt-0.5" style="color:var(--text-tertiary)">
+        Review, edit, and approve AI-generated emails before they go out.
+      </p>
+    </div>
+    <span class="wvvy-badge wvvy-badge-cyan">{{ drafts|length }} pending</span>
+  </div>
+
+  {% if not drafts %}
+  <div class="draft-card p-8 text-center">
+    <p style="color:var(--text-tertiary);font-size:0.9375rem;">No pending drafts. The AI is up to date.</p>
+  </div>
+  {% endif %}
+
+  {% for d in drafts %}
+  <div class="draft-card mb-5 anim-fade-up" id="draft-{{ d.pk }}" style="animation-delay:{{ forloop.counter0 }}0ms">
+    <div class="draft-card-accent"></div>
+    <div class="p-5">
+
+      <!-- Contact header -->
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <p class="font-bold" style="color:var(--text-primary);font-size:1rem;">{{ d.contact.name }}</p>
+          <p class="text-sm" style="color:var(--text-secondary)">
+            {{ d.contact.role|default:"" }}{% if d.contact.role and d.contact.company %} · {% endif %}{{ d.contact.company|default:"" }}
+          </p>
+          {% if d.contact.location or d.contact.industry %}
+          <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">
+            {{ d.contact.location }}{% if d.contact.location and d.contact.industry %} · {% endif %}{{ d.contact.industry }}
+          </p>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+          {% if d.draft_is_followup %}
+          <span class="wvvy-badge wvvy-badge-violet">Follow-up</span>
+          {% else %}
+          <span class="wvvy-badge wvvy-badge-cyan">Reply</span>
+          {% endif %}
+          <span class="text-xs" style="color:var(--text-tertiary)">{{ d.created_at|date:"M j, g:ia" }}</span>
+        </div>
+      </div>
+
+      <!-- Their last message -->
+      {% with last_inbound=d.contact.email_thread.all %}
+      {% for entry in last_inbound %}{% if entry.direction == 'inbound' %}{% if forloop.last %}
+      <p class="text-xs font-semibold mb-1.5" style="color:var(--text-tertiary);letter-spacing:0.06em;text-transform:uppercase;">Their message</p>
+      <div class="msg-bubble mb-4">{{ entry.body }}</div>
+      {% endif %}{% endif %}{% endfor %}
+      {% endwith %}
+
+      <!-- AI draft (editable) -->
+      <p class="text-xs font-semibold mb-1.5" style="color:var(--text-tertiary);letter-spacing:0.06em;text-transform:uppercase;">
+        AI draft <span style="color:var(--text-disabled);font-weight:400;letter-spacing:0">— re: {{ d.draft_subject }}</span>
+      </p>
+      <textarea class="draft-textarea mb-4" id="text-{{ d.pk }}" rows="5">{{ d.response }}</textarea>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3" id="actions-{{ d.pk }}">
+        <button onclick="approveDraft({{ d.pk }}, false)" class="wvvy-btn-primary">
+          Approve &amp; Send
+        </button>
+        <button onclick="approveDraft({{ d.pk }}, true)" class="wvvy-btn-ghost">
+          Edit &amp; Send
+        </button>
+        <button onclick="rejectDraft({{ d.pk }})"
+                style="background:transparent;border:none;cursor:pointer;font-size:0.8125rem;color:var(--text-tertiary);padding:0.5rem;"
+                onmouseenter="this.style.color='var(--rose)'" onmouseleave="this.style.color='var(--text-tertiary)'">
+          Reject
+        </button>
+        <span id="status-{{ d.pk }}" class="text-sm" style="color:var(--text-tertiary);display:none;"></span>
+      </div>
+
+    </div>
+  </div>
+  {% endfor %}
+</main>
+
+<script>
+function getCsrf() {
+  return document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function approveDraft(pk, useEdit) {
+  const textarea = document.getElementById('text-' + pk);
+  const text = useEdit ? textarea.value.trim() : null;
+  const body = text ? JSON.stringify({text}) : JSON.stringify({});
+
+  fetch(`/api/ai-drafts/${pk}/approve/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+    body,
+  }).then(r => r.json()).then(d => {
+    const statusEl = document.getElementById('status-' + pk);
+    if (d.ok) {
+      document.getElementById('draft-' + pk).classList.add('actioned');
+      statusEl.textContent = 'Sent.';
+      statusEl.style.color = 'var(--cyan)';
+      statusEl.style.display = 'inline';
+    } else {
+      statusEl.textContent = d.error || 'Error sending.';
+      statusEl.style.color = 'var(--rose)';
+      statusEl.style.display = 'inline';
+    }
+  });
+}
+
+function rejectDraft(pk) {
+  fetch(`/api/ai-drafts/${pk}/reject/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+    body: '{}',
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      const card = document.getElementById('draft-' + pk);
+      card.classList.add('actioned');
+      const statusEl = document.getElementById('status-' + pk);
+      statusEl.textContent = 'Rejected.';
+      statusEl.style.color = 'var(--text-tertiary)';
+      statusEl.style.display = 'inline';
+    }
+  });
+}
+</script>
+{% endblock %}

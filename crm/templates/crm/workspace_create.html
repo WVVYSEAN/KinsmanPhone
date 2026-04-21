@@ -1,0 +1,86 @@
+{% extends "crm/base.html" %}
+
+{% block title %}New Workspace — WVVYReach{% endblock %}
+
+{% block content %}
+<main class="max-w-lg mx-auto px-6 py-12">
+  <h1 class="text-xl font-bold text-white mb-8">Create Workspace</h1>
+
+  {% if error %}
+  <div class="mb-6 px-4 py-3 bg-red-950 border border-red-800 rounded-lg text-sm text-red-400">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Name + Logo -->
+    <div class="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+      <div class="px-5 py-4 border-b border-zinc-800">
+        <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-wide">Workspace Details</h2>
+      </div>
+      <div class="px-5 py-5 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Name <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required placeholder="e.g. Acme Corp"
+                 class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Logo <span class="font-normal text-zinc-500">(optional)</span></label>
+          <input type="file" name="logo" accept="image/*"
+                 class="w-full text-sm text-zinc-400 border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 outline-none file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-700 file:text-white hover:file:bg-zinc-600" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+      <div class="px-5 py-4 border-b border-zinc-800">
+        <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-wide">Users</h2>
+        <p class="text-xs text-zinc-600 mt-0.5">Enter multiple emails separated by commas or new lines</p>
+      </div>
+      <div class="px-5 py-5 space-y-5">
+
+        <!-- Owner -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">
+            Owner <span class="text-red-500">*</span>
+            <span class="text-zinc-600 font-normal ml-1">— can delete the workspace</span>
+          </label>
+          <input type="email" name="owner_email" required placeholder="owner@company.com"
+                 class="w-full text-sm border border-amber-900/60 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-amber-700" />
+        </div>
+
+        <!-- Admins -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">
+            Admins
+            <span class="text-zinc-600 font-normal ml-1">— can invite and remove members</span>
+          </label>
+          <textarea name="admin_emails" rows="3"
+                    placeholder="admin1@company.com, admin2@company.com"
+                    class="w-full text-sm border border-sky-900/60 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-sky-700 resize-none"></textarea>
+        </div>
+
+        <!-- Members -->
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">
+            Members
+            <span class="text-zinc-600 font-normal ml-1">— full CRM access</span>
+          </label>
+          <textarea name="member_emails" rows="3"
+                    placeholder="user1@company.com&#10;user2@company.com"
+                    class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600 resize-none"></textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit"
+              class="bg-white hover:bg-zinc-100 text-black text-sm font-semibold px-6 py-2 rounded-lg transition">
+        Create Workspace
+      </button>
+    </div>
+  </form>
+</main>
+{% endblock %}

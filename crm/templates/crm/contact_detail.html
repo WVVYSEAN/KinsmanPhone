@@ -1,0 +1,723 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}{{ contact.name }} — WVVYReach{% endblock %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Scoped to this page — uses reference design tokens */
+  .ldp {
+    --bg:        #0d0d1a;
+    --surface:   #12121f;
+    --border:    #1e1e2e;
+    --border2:   #2a2a3a;
+    --text:      #e2e8f0;
+    --muted:     #94a3b8;
+    --faint:     #6b7280;
+    --deep:      #4a4a6a;
+    --green:     #22c55e;
+    --green-bg:  #0f2a1a;
+    --green-bd:  #22c55e33;
+    --indigo:    #818cf8;
+    --indigo-bg: #1a1a2e;
+    --warm:      #f5a623;
+    --warm-bg:   #2a1f0e;
+    --red:       #ef4444;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 80px;
+    min-height: calc(100vh - 49px);
+  }
+
+  /* TOP BAR */
+  .ldp .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 49px; z-index: 30;
+    backdrop-filter: blur(12px);
+  }
+  .ldp .back-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: none; border: none; color: var(--faint);
+    cursor: pointer; font-size: 13px; font-family: inherit;
+    text-decoration: none; transition: color .15s;
+  }
+  .ldp .back-btn:hover { color: var(--muted); }
+  .ldp .top-bar-right { display: flex; align-items: center; gap: 12px; }
+
+  .ldp .heat-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  }
+  .ldp .heat-badge.heat-cold   { background: rgba(74,158,255,.12); color: #4a9eff; border: 1px solid rgba(74,158,255,.25); }
+  .ldp .heat-badge.heat-medium { background: var(--warm-bg); color: var(--warm); border: 1px solid #f5a62322; }
+  .ldp .heat-badge.heat-warm   { background: var(--warm-bg); color: var(--warm); border: 1px solid #f5a62322; }
+  .ldp .heat-badge.heat-active { background: rgba(0,229,200,.08); color: #00e5c8; border: 1px solid rgba(0,229,200,.25); }
+  .ldp .heat-badge.heat-dormant{ background: rgba(107,114,128,.12); color: var(--faint); border: 1px solid rgba(107,114,128,.22); }
+  .ldp .heat-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; box-shadow: 0 0 6px currentColor;
+  }
+
+  .ldp .called-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 16px; background: var(--green-bg);
+    border: 1px solid var(--green-bd); border-radius: 8px;
+    color: var(--green); cursor: pointer;
+    font-size: 13px; font-family: inherit; font-weight: 700;
+    transition: all .15s;
+  }
+  .ldp .called-btn:hover { background: #1a3a2a; }
+  .ldp .called-btn.active { background: #0a2010; border-color: var(--green); }
+
+  /* HERO */
+  .ldp .hero {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 36px 32px 28px; border-bottom: 1px solid var(--border);
+    gap: 32px; flex-wrap: wrap;
+    animation: ldpFadeUp .4s .05s ease both;
+  }
+  .ldp .hero-left { display: flex; align-items: flex-start; gap: 20px; }
+  .ldp .avatar {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: linear-gradient(135deg, var(--indigo), #a78bfa);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: #fff;
+    flex-shrink: 0; letter-spacing: -.5px;
+    box-shadow: 0 4px 24px #818cf822;
+  }
+  .ldp .lead-name { font-size: 26px; font-weight: 700; letter-spacing: -.5px; color: #f1f5f9; line-height: 1.1; }
+  .ldp .lead-title { color: var(--muted); font-size: 14px; margin-top: 5px; }
+  .ldp .lead-location {
+    display: flex; align-items: center; gap: 4px;
+    color: var(--faint); font-size: 13px; margin-top: 6px;
+  }
+  .ldp .org-description {
+    font-size: 12px; color: var(--deep); line-height: 1.6;
+    margin-top: 10px; max-width: 320px;
+    border-left: 2px solid var(--border2); padding-left: 10px;
+  }
+  .ldp .hero-right { display: flex; flex-direction: column; gap: 10px; min-width: 290px; }
+
+  .ldp .phone-link {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--green-bg); border: 1px solid var(--green-bd);
+    border-radius: 11px; padding: 11px 16px;
+    color: var(--green); text-decoration: none;
+    font-size: 15px; font-weight: 700;
+    font-family: 'DM Mono', monospace; letter-spacing: .02em;
+    transition: all .15s;
+  }
+  .ldp .phone-link:hover { background: #1a3a2a; border-color: #22c55e66; }
+
+  .ldp .email-link {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 9px 16px;
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    transition: all .15s;
+  }
+  .ldp .email-link:hover { border-color: #4a4a6a; color: var(--text); }
+
+  .ldp .drip-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 10px 16px;
+  }
+  .ldp .drip-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .ldp .drip-sub { font-size: 11px; color: var(--deep); margin-top: 2px; }
+
+  /* Toggle */
+  .ldp .toggle {
+    width: 44px; height: 24px; border-radius: 12px; border: none;
+    cursor: pointer; position: relative;
+    background: var(--border2); transition: background .2s; flex-shrink: 0;
+  }
+  .ldp .toggle.on { background: var(--indigo); }
+  .ldp .toggle-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; background: #fff; border-radius: 50%;
+    transition: transform .2s; pointer-events: none;
+  }
+  .ldp .toggle.on .toggle-knob { transform: translateX(20px); }
+
+  /* TABS */
+  .ldp .tab-bar {
+    display: flex; padding: 0 32px;
+    border-bottom: 1px solid var(--border);
+    animation: ldpFadeUp .4s .1s ease both;
+  }
+  .ldp .tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--faint); cursor: pointer;
+    font-size: 13px; font-family: inherit; font-weight: 500;
+    padding: 14px 20px; letter-spacing: .02em;
+    transition: color .15s, border-color .15s;
+  }
+  .ldp .tab:hover { color: var(--muted); }
+  .ldp .tab.active { color: var(--indigo); border-bottom-color: var(--indigo); }
+
+  /* CONTENT */
+  .ldp .content { padding: 28px 32px; animation: ldpFadeUp .4s .15s ease both; }
+  .ldp .tab-panel { display: none; }
+  .ldp .tab-panel.active { display: block; }
+
+  .ldp .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .ldp .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; }
+  .ldp .card-title {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--deep); margin-bottom: 16px;
+  }
+
+  /* Field list */
+  .ldp .field-list { display: flex; flex-direction: column; }
+  .ldp .field-row {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #1a1a2a; padding: 10px 0;
+  }
+  .ldp .field-row:last-child { border-bottom: none; }
+  .ldp .field-label { font-size: 12px; color: #4a5568; font-weight: 500; }
+  .ldp .field-value { font-size: 13px; color: var(--muted); }
+  .ldp .field-link { font-size: 13px; color: var(--indigo); text-decoration: none; }
+  .ldp .field-link:hover { text-decoration: underline; }
+
+  /* Outcome */
+  .ldp .outcome-note { font-size: 12px; color: #4a5568; margin-bottom: 14px; line-height: 1.5; }
+  .ldp .outcome-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ldp .outcome-btn {
+    padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 12px; font-family: inherit; font-weight: 700;
+    transition: all .15s; background: transparent;
+    border: 1px solid var(--border2); color: var(--faint);
+  }
+  .ldp .outcome-btn:hover { border-color: #4a4a6a; color: var(--muted); }
+  .ldp .outcome-btn.active-interested    { border-color: #22c55e;        background: #22c55e22;        color: #22c55e; }
+  .ldp .outcome-btn.active-not_now       { border-color: var(--warm);    background: #f5a62322;        color: var(--warm); }
+  .ldp .outcome-btn.active-not_interested{ border-color: var(--red);     background: #ef444422;        color: var(--red); }
+  .ldp .outcome-btn.active-booked        { border-color: var(--indigo);  background: #818cf822;        color: var(--indigo); }
+  .ldp .outcome-btn.active-no_answer     { border-color: var(--faint);   background: #6b728022;        color: var(--faint); }
+
+  /* Stats */
+  .ldp .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .ldp .stat-block { background: var(--bg); border-radius: 10px; padding: 14px; text-align: center; }
+  .ldp .stat-value { font-size: 18px; font-weight: 700; letter-spacing: -.5px; }
+  .ldp .stat-unit  { font-size: 10px; color: var(--deep); text-transform: uppercase; letter-spacing: .08em; }
+  .ldp .stat-label { font-size: 11px; color: var(--faint); margin-top: 4px; }
+
+  /* Outreach */
+  .ldp .outreach-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .ldp .outreach-label { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .ldp .outreach-sub { font-size: 12px; color: var(--deep); margin-top: 4px; line-height: 1.4; }
+
+  /* Contact log */
+  .ldp .log-layout { display: flex; flex-direction: column; gap: 20px; }
+  .ldp .log-form { display: flex; flex-direction: column; gap: 14px; }
+  .ldp .type-row { display: flex; gap: 8px; }
+  .ldp .type-btn {
+    padding: 6px 16px; border-radius: 8px; cursor: pointer;
+    font-size: 12px; font-family: inherit; font-weight: 700;
+    background: var(--indigo-bg); color: var(--faint);
+    border: 1px solid var(--border2); transition: all .15s;
+  }
+  .ldp .type-btn.active { background: var(--indigo); color: #fff; border-color: var(--indigo); }
+
+  .ldp textarea, .ldp select {
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 10px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    padding: 11px 14px; resize: vertical; outline: none; line-height: 1.6;
+    transition: border-color .15s; width: 100%;
+  }
+  .ldp textarea:focus, .ldp select:focus { border-color: var(--indigo); }
+  .ldp textarea::placeholder { color: var(--deep); }
+  .ldp select { resize: none; cursor: pointer; }
+
+  .ldp .log-outcome-row { display: flex; align-items: center; gap: 12px; }
+  .ldp .log-outcome-label { font-size: 12px; color: var(--faint); white-space: nowrap; }
+
+  .ldp .submit-btn {
+    background: var(--indigo); border: none; border-radius: 10px;
+    color: #fff; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 700; padding: 11px;
+    letter-spacing: .03em; transition: opacity .15s, transform .1s; width: 100%;
+  }
+  .ldp .submit-btn:hover { opacity: .88; }
+  .ldp .submit-btn:active { transform: scale(.98); }
+  .ldp .submit-btn.success { background: var(--green); }
+
+  .ldp .log-history { display: flex; flex-direction: column; }
+  .ldp .log-entry {
+    display: flex; gap: 14px; padding: 14px 0;
+    border-bottom: 1px solid #1a1a2a;
+  }
+  .ldp .log-entry:last-child { border-bottom: none; }
+  .ldp .log-type-pill {
+    background: var(--indigo-bg); border: 1px solid #2a2a4a;
+    border-radius: 6px; padding: 3px 8px;
+    font-size: 10px; font-weight: 700; color: var(--indigo);
+    text-transform: uppercase; letter-spacing: .08em; white-space: nowrap;
+    height: fit-content; font-family: 'DM Mono', monospace;
+  }
+  .ldp .log-entry-body { flex: 1; }
+  .ldp .log-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 5px; }
+  .ldp .log-date { font-size: 12px; color: var(--faint); font-weight: 600; }
+  .ldp .log-user { font-size: 12px; color: var(--deep); }
+  .ldp .log-outcome-tag { font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+  .ldp .log-note { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .ldp .empty-log { color: var(--deep); font-size: 13px; text-align: center; padding: 24px 0; }
+
+  /* Financials */
+  .ldp .fin-note { font-size: 12px; color: #4a5568; margin-bottom: 18px; line-height: 1.5; }
+  .ldp .fin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .ldp .fin-field { display: flex; flex-direction: column; gap: 6px; }
+  .ldp .fin-label { font-size: 11px; color: #4a5568; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+  .ldp input[type="text"] {
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 8px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    padding: 9px 12px; outline: none; width: 100%;
+    transition: border-color .15s;
+  }
+  .ldp input[type="text"]:focus { border-color: var(--indigo); }
+  .ldp input[type="text"]::placeholder { color: var(--deep); }
+
+  .ldp .save-btn {
+    background: var(--green-bg); border: 1px solid var(--green-bd);
+    border-radius: 10px; color: var(--green); cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 700;
+    padding: 10px 20px; letter-spacing: .03em; transition: all .15s;
+  }
+  .ldp .save-btn:hover { background: #1a3a1a; border-color: #22c55e66; }
+
+  .ldp .pe-placeholder {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 14px; padding: 48px 24px; text-align: center;
+  }
+  .ldp .pe-placeholder-icon { opacity: .25; }
+  .ldp .pe-placeholder-text { font-size: 13px; color: var(--deep); line-height: 1.6; max-width: 280px; }
+
+  @keyframes ldpFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 768px) {
+    .ldp .top-bar { padding: 12px 16px; }
+    .ldp .hero    { padding: 24px 16px; flex-direction: column; }
+    .ldp .hero-right { min-width: unset; width: 100%; }
+    .ldp .tab-bar { padding: 0 16px; overflow-x: auto; }
+    .ldp .content { padding: 20px 16px; }
+    .ldp .grid-2  { grid-template-columns: 1fr; }
+    .ldp .fin-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="ldp">
+
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <a href="javascript:history.back()" class="back-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      All Leads
+    </a>
+    <div class="top-bar-right">
+      <div class="heat-badge heat-{{ contact.heat }}">
+        <span class="heat-dot"></span>
+        {{ contact.get_heat_display }} · {{ heat_score }} pts
+      </div>
+      <button class="called-btn{% if contact.called %} active{% endif %}" id="calledBtn" onclick="toggleCalled()">
+        <svg id="calledIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          {% if contact.called %}
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/>
+          {% else %}
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.05 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          {% endif %}
+        </svg>
+        <span id="calledLabel">{% if contact.called %}Called{% else %}Mark Called{% endif %}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="avatar">{{ initials }}</div>
+      <div>
+        <h1 class="lead-name">{{ contact.name }}</h1>
+        <div class="lead-title">{{ contact.role }}{% if contact.role and contact.company %} · {% endif %}{{ contact.company }}</div>
+        {% if contact.location %}
+        <div class="lead-location">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ contact.location }}
+        </div>
+        {% endif %}
+        {% if contact.notes %}
+        <div class="org-description">{{ contact.notes }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="hero-right">
+      {% if contact.phone %}
+      <a href="tel:{{ contact.phone }}" class="phone-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.05 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+        {{ contact.phone }}
+      </a>
+      {% endif %}
+      {% if contact.email %}
+      <a href="mailto:{{ contact.email }}" class="email-link">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        {{ contact.email }}
+      </a>
+      {% endif %}
+      <div class="drip-row">
+        <div>
+          <div class="drip-label">Drip Campaign</div>
+          <div class="drip-sub" id="dripSub">
+            {% if not contact.drip_paused and not contact.drip_sequence_stopped %}{{ contact.drip_followups_sent }} email{{ contact.drip_followups_sent|pluralize }} sent{% else %}Not enrolled{% endif %}
+          </div>
+        </div>
+        <button class="toggle{% if not contact.drip_paused and not contact.drip_sequence_stopped %} on{% endif %}" id="dripToggle" onclick="toggleDrip()">
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABS -->
+  <nav class="tab-bar">
+    <button class="tab active" onclick="switchTab('overview', this)">Overview</button>
+    <button class="tab" onclick="switchTab('contact-log', this)">Contact Log</button>
+    <button class="tab" onclick="switchTab('financials', this)">Financials &amp; PE Data</button>
+  </nav>
+
+  <!-- CONTENT -->
+  <main class="content">
+
+    <!-- OVERVIEW TAB -->
+    <div class="tab-panel active" id="tab-overview">
+      <div class="grid-2">
+
+        <div class="card">
+          <div class="card-title">Company Information</div>
+          <div class="field-list">
+            <div class="field-row"><span class="field-label">Company</span><span class="field-value">{{ contact.company|default:"—" }}</span></div>
+            <div class="field-row"><span class="field-label">Industry</span><span class="field-value">{{ contact.industry|default:"—" }}</span></div>
+            <div class="field-row"><span class="field-label">Company Size</span><span class="field-value">{{ contact.company_size|default:"—" }}</span></div>
+            <div class="field-row">
+              <span class="field-label">Website</span>
+              {% if contact.company_domain %}<a href="https://{{ contact.company_domain }}" target="_blank" rel="noreferrer" class="field-link">{{ contact.company_domain }}</a>{% else %}<span class="field-value">—</span>{% endif %}
+            </div>
+            <div class="field-row">
+              <span class="field-label">LinkedIn</span>
+              {% if contact.linkedin %}<a href="{{ contact.linkedin }}" target="_blank" rel="noreferrer" class="field-link">View profile</a>{% else %}<span class="field-value">—</span>{% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Call Outcome</div>
+          <div class="outcome-note">After calling, log the result to train the model.</div>
+          <div class="outcome-grid">
+            <button class="outcome-btn" data-outcome="interested"      onclick="selectOutcome(this)">Interested</button>
+            <button class="outcome-btn" data-outcome="not_now"         onclick="selectOutcome(this)">Not Now</button>
+            <button class="outcome-btn" data-outcome="not_interested"  onclick="selectOutcome(this)">Not Interested</button>
+            <button class="outcome-btn" data-outcome="booked"          onclick="selectOutcome(this)">Discovery Booked</button>
+            <button class="outcome-btn" data-outcome="no_answer"       onclick="selectOutcome(this)">No Answer</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Lead Activity</div>
+          <div class="stat-grid">
+            <div class="stat-block">
+              <div class="stat-value" style="color:var(--warm)">{{ heat_score }}</div>
+              <div class="stat-unit">pts</div>
+              <div class="stat-label">Heat Score</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-value" style="color:var(--indigo)">{{ contact.drip_followups_sent }}</div>
+              <div class="stat-unit">total</div>
+              <div class="stat-label">Emails Sent</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-value" style="color:#22c55e;font-size:14px">
+                {% if contact.last_follow_up_at %}{{ contact.last_follow_up_at|date:"M j" }}{% else %}—{% endif %}
+              </div>
+              <div class="stat-unit">&nbsp;</div>
+              <div class="stat-label">Last Activity</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-value" style="color:var(--faint);font-size:14px">{{ contact.created_at|date:"M j" }}</div>
+              <div class="stat-unit">&nbsp;</div>
+              <div class="stat-label">Date Added</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Email Outreach</div>
+          <div class="outreach-row">
+            <div>
+              <div class="outreach-label">Auto Email Outreach</div>
+              <div class="outreach-sub">Disabled by default — enable to send automated emails to this lead.</div>
+            </div>
+            <button class="toggle{% if contact.email_outreach_enabled %} on{% endif %}" id="emailToggle" onclick="toggleEmail()">
+              <span class="toggle-knob"></span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CONTACT LOG TAB -->
+    <div class="tab-panel" id="tab-contact-log">
+      <div class="log-layout">
+
+        <div class="card">
+          <div class="card-title">Log Contact</div>
+          <div class="log-form">
+            <div class="type-row">
+              <button class="type-btn active" data-type="call"      onclick="selectType(this)">Call</button>
+              <button class="type-btn"        data-type="email"     onclick="selectType(this)">Email</button>
+              <button class="type-btn"        data-type="voicemail" onclick="selectType(this)">Voicemail</button>
+              <button class="type-btn"        data-type="text"      onclick="selectType(this)">Text</button>
+            </div>
+            <textarea id="logNote" rows="4" placeholder="Notes on this contact attempt — what was discussed, tone, objections, next steps..."></textarea>
+            <div class="log-outcome-row">
+              <label class="log-outcome-label">Outcome (optional)</label>
+              <select id="logOutcome">
+                <option value="">— Select outcome —</option>
+                {% for val, label in outcome_choices %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button class="submit-btn" id="saveLogBtn" onclick="saveLog()">Save Log Entry</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Contact History</div>
+          <div class="log-history" id="logHistory">
+            {% if touchpoints %}
+              {% for tp in touchpoints %}
+              <div class="log-entry">
+                <div class="log-type-pill">{{ tp.touchpoint_type }}</div>
+                <div class="log-entry-body">
+                  <div class="log-meta">
+                    <span class="log-date">{{ tp.date|date:"M j, Y" }}</span>
+                    {% if tp.logged_by %}<span class="log-user">· {{ tp.logged_by }}</span>{% endif %}
+                    {% if tp.outcome %}
+                    <span class="log-outcome-tag" data-outcome="{{ tp.outcome }}">{{ tp.get_outcome_display }}</span>
+                    {% endif %}
+                  </div>
+                  {% if tp.summary %}<div class="log-note" style="font-weight:500;margin-bottom:2px;">{{ tp.summary }}</div>{% endif %}
+                  {% if tp.notes %}<div class="log-note">{{ tp.notes }}</div>{% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+            <div class="empty-log">No contact logged yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FINANCIALS TAB -->
+    <div class="tab-panel" id="tab-financials">
+      <div class="grid-2">
+
+        <div class="card">
+          <div class="card-title">Financial Profile</div>
+          <div class="fin-note">Used for Phase Two PE matching. Keep updated as you learn more about this client.</div>
+          <div class="fin-grid">
+            <div class="fin-field"><label class="fin-label">Annual Revenue</label><input type="text" id="fin-revenue" value="{{ contact.revenue }}" placeholder="e.g. $12M"></div>
+            <div class="fin-field"><label class="fin-label">EBITDA</label><input type="text" id="fin-ebitda" value="{{ contact.ebitda }}" placeholder="e.g. $2.1M"></div>
+            <div class="fin-field"><label class="fin-label">Industry / Specialization</label><input type="text" id="fin-industry" value="{{ contact.industry }}" placeholder="e.g. Manufacturing"></div>
+            <div class="fin-field"><label class="fin-label">Company Size (Employees)</label><input type="text" id="fin-company-size" value="{{ contact.company_size }}" placeholder="e.g. 51–200"></div>
+            <div class="fin-field"><label class="fin-label">Ownership Structure</label><input type="text" id="fin-ownership" value="{{ contact.ownership_structure }}" placeholder="e.g. Founder-owned, Family business"></div>
+            <div class="fin-field"><label class="fin-label">Reason for Sale / Motivation</label><input type="text" id="fin-reason" value="{{ contact.reason_for_sale }}" placeholder="e.g. Retirement, growth capital"></div>
+          </div>
+          <div class="fin-field" style="margin-bottom:16px">
+            <label class="fin-label">Causality Notes</label>
+            <textarea id="fin-notes" rows="4" placeholder="Contextual notes explaining why this lead converted, declined, or should be revisited. This data trains the model.">{{ contact.causality_notes }}</textarea>
+          </div>
+          <button class="save-btn" onclick="saveFinancials()">Save Financial Profile</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">PE Match Preview</div>
+          <div class="pe-placeholder">
+            <svg class="pe-placeholder-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="1.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div class="pe-placeholder-text">Fill in Revenue &amp; EBITDA above to generate a matched list of PE firms whose buying criteria align with this client's profile.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CONTACT_PK = {{ contact.pk }};
+const CSRF = getCsrf();
+
+const outcomeColors = {
+  interested: '#22c55e', not_now: '#f5a623',
+  not_interested: '#ef4444', booked: '#818cf8', no_answer: '#6b7280'
+};
+const outcomeLabels = {
+  interested: 'Interested', not_now: 'Not Now',
+  not_interested: 'Not Interested', booked: 'Discovery Booked', no_answer: 'No Answer'
+};
+
+// Apply colours to existing outcome tags in contact log
+document.querySelectorAll('.log-outcome-tag[data-outcome]').forEach(el => {
+  el.style.color = outcomeColors[el.dataset.outcome] || '#94a3b8';
+});
+
+// Set initial call outcome active state
+const initialOutcome = '{{ contact.call_outcome }}';
+if (initialOutcome) {
+  const btn = document.querySelector(`.outcome-btn[data-outcome="${initialOutcome}"]`);
+  if (btn) btn.classList.add('active-' + initialOutcome);
+}
+
+// Tab switching
+function switchTab(id, btn) {
+  document.querySelectorAll('.ldp .tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.ldp .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Called toggle
+function toggleCalled() {
+  fetch(`/api/contact/${CONTACT_PK}/called/`, {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF },
+  }).then(r => r.json()).then(res => {
+    const btn = document.getElementById('calledBtn');
+    const lbl = document.getElementById('calledLabel');
+    const ico = document.getElementById('calledIcon');
+    btn.classList.toggle('active', res.called);
+    lbl.textContent = res.called ? 'Called' : 'Mark Called';
+    ico.innerHTML = res.called
+      ? '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" fill="none" stroke="currentColor" stroke-width="2"/>'
+      : '<path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.05 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" fill="none" stroke="currentColor" stroke-width="2"/>';
+  }).catch(() => showToast('Failed to update', true));
+}
+
+// Drip toggle
+function toggleDrip() {
+  fetch(`/api/drip/${CONTACT_PK}/pause/`, {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF },
+  }).then(r => r.json()).then(res => {
+    const on = !res.paused;
+    document.getElementById('dripToggle').classList.toggle('on', on);
+    document.getElementById('dripSub').textContent = on ? '{{ contact.drip_followups_sent }} email{{ contact.drip_followups_sent|pluralize }} sent' : 'Not enrolled';
+  }).catch(() => showToast('Failed to update', true));
+}
+
+// Email outreach toggle
+function toggleEmail() {
+  fetch(`/api/contact/${CONTACT_PK}/email-outreach/`, {
+    method: 'POST', headers: { 'X-CSRFToken': CSRF },
+  }).then(r => r.json()).then(res => {
+    document.getElementById('emailToggle').classList.toggle('on', res.email_outreach_enabled);
+  }).catch(() => showToast('Failed to update', true));
+}
+
+// Outcome selection
+function selectOutcome(btn) {
+  const prev = btn.classList.value.match(/active-\S+/);
+  document.querySelectorAll('.outcome-btn').forEach(b => b.className = 'outcome-btn');
+  const outcome = btn.dataset.outcome;
+  const isDeselect = prev && prev[0] === 'active-' + outcome;
+  const newVal = isDeselect ? '' : outcome;
+  fetch(`/api/contact/${CONTACT_PK}/outcome/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ outcome: newVal }),
+  }).then(r => r.json()).then(res => {
+    if (res.call_outcome) btn.classList.add('active-' + res.call_outcome);
+  }).catch(() => showToast('Failed to update', true));
+}
+
+// Contact type selection
+function selectType(btn) {
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// Save log entry
+function saveLog() {
+  const note = document.getElementById('logNote').value.trim();
+  if (!note) return;
+  const type    = document.querySelector('.type-btn.active').dataset.type;
+  const outcome = document.getElementById('logOutcome').value;
+  const today   = new Date().toISOString().split('T')[0];
+
+  fetch(`/api/touchpoint/contact/${CONTACT_PK}/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ type, date: today, notes: note, outcome }),
+  }).then(r => r.json()).then(entry => {
+    const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const outcomeTag = entry.outcome
+      ? `<span class="log-outcome-tag" style="color:${outcomeColors[entry.outcome]}">${outcomeLabels[entry.outcome] || entry.outcome}</span>`
+      : '';
+    const html = `
+      <div class="log-entry" style="animation:ldpFadeUp .25s ease both">
+        <div class="log-type-pill">${entry.type}</div>
+        <div class="log-entry-body">
+          <div class="log-meta">
+            <span class="log-date">${now}</span>
+            ${outcomeTag}
+          </div>
+          <div class="log-note">${entry.notes}</div>
+        </div>
+      </div>`;
+    const history = document.getElementById('logHistory');
+    const empty = history.querySelector('.empty-log');
+    if (empty) empty.remove();
+    history.insertAdjacentHTML('afterbegin', html);
+    document.getElementById('logNote').value = '';
+    document.getElementById('logOutcome').value = '';
+    const btn = document.getElementById('saveLogBtn');
+    btn.textContent = '✓ Logged';
+    btn.classList.add('success');
+    setTimeout(() => { btn.textContent = 'Save Log Entry'; btn.classList.remove('success'); }, 2000);
+  }).catch(() => showToast('Failed to save', true));
+}
+
+// Save financials
+function saveFinancials() {
+  const payload = {
+    revenue:             document.getElementById('fin-revenue').value,
+    ebitda:              document.getElementById('fin-ebitda').value,
+    company_size:        document.getElementById('fin-company-size').value,
+    ownership_structure: document.getElementById('fin-ownership').value,
+    reason_for_sale:     document.getElementById('fin-reason').value,
+    causality_notes:     document.getElementById('fin-notes').value,
+  };
+  fetch(`/api/contact/${CONTACT_PK}/financials/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(payload),
+  }).then(r => r.json()).then(() => showToast('Financial profile saved'))
+    .catch(() => showToast('Failed to save', true));
+}
+</script>
+{% endblock %}
