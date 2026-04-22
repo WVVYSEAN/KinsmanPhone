@@ -153,8 +153,7 @@
 
   </form><!-- end #filter-form -->
 
-  <!-- ── Lead table ── -->
-  {% if contacts %}
+  <!-- ── Lead table (headers always rendered so sort works at 0 results) ── -->
   <div class="wvvy-card overflow-hidden">
     <div class="overflow-x-auto">
       <table class="w-full text-sm whitespace-nowrap">
@@ -227,6 +226,14 @@
               {{ c.created_at|date:"M j, Y" }}
             </td>
           </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="px-6 py-14 text-center">
+              <p class="text-base font-semibold mb-1" style="color:var(--text-secondary)">No leads match your filters</p>
+              <p class="text-sm mb-4" style="color:var(--text-tertiary)">Try adjusting your search or filters.</p>
+              <a href="/contacts/cold_lead/" class="wvvy-btn-primary" style="font-size:0.8125rem">Clear Filters</a>
+            </td>
+          </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -247,15 +254,6 @@
     <a href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
        class="wvvy-btn-ghost" style="font-size:0.8125rem">Next →</a>
     {% endif %}
-  </div>
-  {% endif %}
-
-  {% else %}
-  <!-- Empty state -->
-  <div class="wvvy-card py-16 text-center">
-    <p class="text-lg font-semibold mb-1" style="color:var(--text-secondary)">No leads match your filters</p>
-    <p class="text-sm mb-4" style="color:var(--text-tertiary)">Try adjusting your search or filters.</p>
-    <a href="/contacts/cold_lead/" class="wvvy-btn-primary" style="font-size:0.8125rem">Clear Filters</a>
   </div>
   {% endif %}
 
@@ -390,13 +388,13 @@ function onOpChange(idx, op) {
   wrap.innerHTML = buildValueInput(idx, fieldVal, op, '');
 }
 
-function addFilterRow(initialField='', initialOp='', initialVal='') {
+function addFilterRow(initialField='', initialOp='', initialVal='', autoSubmit=true) {
   showFilterPanel();
   const idx = _rowCounter++;
   const container = document.getElementById('filter-rows-ui');
   container.appendChild(renderFilterRow(idx, initialField, initialOp, initialVal));
   updateLogicToggle();
-  if (initialField) submitForm();
+  if (autoSubmit && initialField) submitForm();
 }
 
 function removeFilterRow(idx) {
@@ -549,11 +547,10 @@ function applyFilter(sfObj) {
 
 // ── Init on page load ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Restore filter rows from server state
+  // Restore filter rows from server state — no auto-submit during init
   if (_initialRows.length) {
     showFilterPanel();
-    _initialRows.forEach(r => addFilterRow(r.field, r.op, r.val));
-    // Reset counter to max idx + 1
+    _initialRows.forEach(r => addFilterRow(r.field, r.op, r.val, false));
     _rowCounter = Math.max(..._initialRows.map(r => r.idx + 1), _initialRows.length);
   }
 
