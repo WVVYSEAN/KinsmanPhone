@@ -6,7 +6,7 @@ AI-powered outbound CRM for phone-first lead outreach and personalised cold emai
 
 - **Lead generation** — search LinkedIn via Apify and import contacts directly into the CRM (phone number required at import)
 - **Phone-first workflow** — each lead has a dedicated detail page with a one-tap `tel:` call link, called/outcome tracking, and a contact log
-- **Cold lead list** — server-side search, multi-field filter builder, quick-filter chips, column sort, and saved filter sets
+- **Cold lead list** — server-side search, multi-field filter builder, quick-filter chips, multi-level sort panel, saved filter pills with emoji, and relative time display
 - **Automated outreach** — send personalised email sequences to imported leads via Resend
 - **AI email replies** — inbound replies are handled by an AI pipeline that drafts or sends responses
 - **Multi-workspace** — each team gets an isolated workspace with its own contacts, settings, and API keys
@@ -78,10 +78,11 @@ web: python manage.py migrate --noinput && python manage.py collectstatic --noin
 
 **Phone-first lead list** — `/contacts/cold_lead/` is a dedicated list page with:
 - Global search across name, email, and company
-- Quick filter chips (Ready to Call, Hot Leads, Responded, etc.)
-- Multi-row filter builder with contextual operators per field type
-- Server-side sort on any column
-- Saved filter sets per user (up to 20), persisted to the `SavedFilter` model
+- Always-visible pills row: system quick-filter chips (dashed border) + user saved-filter pills with emoji (solid border)
+- Multi-row filter builder with contextual operators per field type, including expanded date operators (Is Between, Is This Week, Is This Month, In the Next X Days, etc.)
+- Multi-level sort panel (up to 5 levels) with field + direction dropdowns; column-header clicks for quick single-level sort
+- Relative time display for Added / Last Edited date columns ("Today", "2 days ago") with full timestamp on hover
+- Saved filter sets per user (up to 25), persisted to the `SavedFilter` model; "Update [name]" / "Save as New…" workflow when a pill is active
 
 **Contact detail page** — `/contact/<pk>/` shows a full lead profile with a sticky call bar, `tel:` link, called/outcome toggles, contact log, and financials tab.
 

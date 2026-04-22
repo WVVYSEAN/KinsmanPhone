@@ -115,31 +115,40 @@ The app is phone-call-first. Leads are only imported from Apify if they have a p
 
 ### Cold Lead List — Search, Filter & Sort
 
-The cold lead list lives at `/contacts/cold_lead/` and is served by `cold_lead_list` in `views.py` (registered **before** the wildcard, so it overrides it for that exact path). All filtering and sorting is **server-side** — no client-side table engine.
+The cold lead list lives at `/contacts/cold_lead/` and is served by `cold_lead_list` in `views.py` (registered **before** the wildcard). All filtering and sorting is **server-side** — no client-side table engine.
 
 **Features:**
-- Global search (name, email, company) — debounced 250 ms, auto-submits the form
-- Quick filter chips — hardcoded presets: Ready to Call, Hot Leads, Responded, Added This Week, Not Yet Contacted
-- Filter builder — multi-row, field + operator + value; operators are contextual by field type (text/select/boolean/date/presence); AND/OR logic toggle appears at 2+ rows
-- Column-click sort with direction toggle; defaults to heat descending
-- Saved filter sets — persisted per user via the `SavedFilter` model (max 20); save/load/delete via modal + dropdown
+- Global search (name, email, company) — debounced 300 ms, auto-submits the form
+- **Pills row** — always-visible row with two zones: system chips (dashed border) and user saved-filter pills (solid border with emoji)
+  - System chips: Ready to Call (amber hero), Hot Leads, Responded, Added This Week, Not Yet Contacted
+  - User saved-filter pills apply a full saved state and set `active_pill_id` in the URL; delete × on each pill
+- Filter builder — multi-row, field + operator + value; operators contextual by field type; AND/OR logic toggle at 2+ rows
+- **Sort panel** — slide-down multi-level sort (up to 5 levels) with field + direction dropdowns; toolbar button shows active level count badge; column-header clicks reset to single-level
+- Saved filter sets — persisted per user via `SavedFilter` model (max 25); save with emoji via modal; "Update [name]" / "Save as New…" toolbar buttons when a pill is active
+- **Relative time** for date columns — "Today", "Yesterday", "3 days ago" etc. with full timestamp on hover
 
-**`SavedFilter` model** (migration `0033_savedfilter`):
-- Fields: `workspace`, `user`, `name`, `filter_state` (JSONField), `created_at`
-- `filter_state` stores: `{q, chips, filters:[{field,op,val}], filter_logic, sort, sort_dir}`
+**`SavedFilter` model** (migrations `0033_savedfilter`, `0034_contact_updated_at_savedfilter_emoji`):
+- Fields: `workspace`, `user`, `name`, `emoji` (max 8 chars), `filter_state` (JSONField), `created_at`
+- `filter_state` stores: `{q, chips, filters:[{field,op,val}], filter_logic, sort_levels:[{field,dir}]}`
 - Unique on `(workspace, user, name)`
 
+**`Contact.updated_at`** (migration `0034`) — `auto_now=True` DateTimeField; used by "Date Last Edited" column and filter field.
+
 **API endpoints:**
-- `POST /api/saved-filters/save/` — upsert by name; body `{name, state}`
+- `POST /api/saved-filters/save/` — upsert by name; body `{name, emoji, state}`. Pass `update_id` (int pk) instead of `name` to update an existing filter in-place (used by "Update" button)
 - `POST /api/saved-filters/<pk>/delete/` — delete owned filter
 
-**Filter helper `_build_filter_q(field, op, val)`** in `views.py` returns a `Q` object for one row. Supported fields: `name`, `email`, `company`, `role`, `location`, `industry`, `heat`, `called`, `call_outcome`, `phone`, `created_at`.
+**Filter helper `_build_filter_q(field, op, val)`** in `views.py` returns a `Q` object for one row. Supported fields: `name`, `email`, `company`, `role`, `location`, `industry`, `heat`, `called`, `call_outcome`, `phone`, `created_at`, `updated_at`.
 
-**URL params format:** `q=`, `chip=` (repeatable), `ff0=`/`fo0=`/`fv0=` per filter row, `filter_logic=AND|OR`, `sort=`, `sort_dir=asc|desc`. The server reads `ff*` keys via regex so row deletions leaving index gaps are handled correctly.
+Supported date operators: `is_date`, `is_not_date`, `is_before`, `is_on_or_before`, `is_after`, `is_on_or_after`, `is_between` (val = `"YYYY-MM-DD,YYYY-MM-DD"`), `is_this_week`, `is_this_month`, `in_last_x_days`, `in_next_x_days`, `has_no_value`. All date ops use the `db` variable so they work for both `created_at` and `updated_at`.
+
+**URL params format:** `q=`, `chip=` (repeatable), `ff0=`/`fo0=`/`fv0=` per filter row, `filter_logic=AND|OR`, `s1=`/`d1=` … `s5=`/`d5=` for sort levels, `active_pill_id=<int>`. Old `sort=`/`sort_dir=` params still work as a single-level fallback. The server reads `ff*` keys via regex so row deletions leaving index gaps are handled correctly.
 
 **Pagination:** 100 per page via Django's `Paginator`.
 
 **JS init rule — do not call `submitForm()` during page load.** `addFilterRow` accepts an `autoSubmit` parameter (default `true`). Always pass `false` when restoring rows from server state on `DOMContentLoaded`, otherwise every render with active filters triggers an immediate re-submit → infinite reload loop. The table headers are always rendered (empty state uses `{% empty %}` inside `<tbody>`) so sort columns remain clickable even when filters return 0 results.
+
+**Sort state in JS** — `_sortLevels` array (`[{field, dir}]`) is the single source of truth. `syncSortHiddenInputs()` writes `s1/d1`… hidden inputs before each form submit. `_activePillId` (int or null) tracks which saved filter pill is loaded; when set, the toolbar shows "Update [name]" + "Save as New…" instead of "Save Search".
 
 ### URL Ordering
 

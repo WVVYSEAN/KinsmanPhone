@@ -2804,6 +2804,7 @@ _SORT_FIELD_MAP = {
     'called':       'called',
     'call_outcome': 'call_outcome',
     'created_at':   'created_at',
+    'updated_at':   'updated_at',
     'heat':         'heat_order',
 }
 
@@ -2819,6 +2820,7 @@ _FILTER_DB_FIELD = {
     'call_outcome': 'call_outcome',
     'phone':        'phone',
     'created_at':   'created_at',
+    'updated_at':   'updated_at',
 }
 
 _QUICK_CHIPS = [
@@ -2832,6 +2834,7 @@ _QUICK_CHIPS = [
 
 def _build_filter_q(field, op, val):
     """Return a Q object for one filter row, or None if invalid/unsupported."""
+    from django.utils import timezone as tz
     db = _FILTER_DB_FIELD.get(field)
     if not db:
         return None
@@ -2866,18 +2869,40 @@ def _build_filter_q(field, op, val):
             return Q(**{f'{db}': True})
         if op == 'is_false':
             return Q(**{f'{db}': False})
+        # Date operators — use db field name so both created_at and updated_at work
         if op == 'is_date':
-            return Q(created_at__date=val)
+            return Q(**{f'{db}__date': val})
+        if op == 'is_not_date':
+            return ~Q(**{f'{db}__date': val})
         if op == 'is_before':
-            return Q(created_at__date__lt=val)
+            return Q(**{f'{db}__date__lt': val})
         if op == 'is_after':
-            return Q(created_at__date__gt=val)
+            return Q(**{f'{db}__date__gt': val})
+        if op == 'is_on_or_before':
+            return Q(**{f'{db}__date__lte': val})
+        if op == 'is_on_or_after':
+            return Q(**{f'{db}__date__gte': val})
+        if op == 'is_between':
+            parts = [v.strip() for v in val.split(',')]
+            if len(parts) == 2 and parts[0] and parts[1]:
+                return Q(**{f'{db}__date__gte': parts[0]}) & Q(**{f'{db}__date__lte': parts[1]})
         if op == 'in_last_x_days':
-            from django.utils import timezone
             days = int(val) if str(val).isdigit() else 7
-            return Q(created_at__gte=timezone.now() - datetime.timedelta(days=days))
+            return Q(**{f'{db}__gte': tz.now() - datetime.timedelta(days=days)})
+        if op == 'in_next_x_days':
+            days = int(val) if str(val).isdigit() else 7
+            now = tz.now()
+            return Q(**{f'{db}__gte': now}) & Q(**{f'{db}__lte': now + datetime.timedelta(days=days)})
+        if op == 'is_this_week':
+            today = tz.now().date()
+            week_start = today - datetime.timedelta(days=today.weekday())
+            week_end   = week_start + datetime.timedelta(days=6)
+            return Q(**{f'{db}__date__gte': week_start}) & Q(**{f'{db}__date__lte': week_end})
+        if op == 'is_this_month':
+            today = tz.now().date()
+            return Q(**{f'{db}__year': today.year}) & Q(**{f'{db}__month': today.month})
         if op == 'has_no_value':
-            return Q(created_at__isnull=True)
+            return Q(**{f'{db}__isnull': True})
     except Exception:
         pass
     return None
@@ -2933,12 +2958,35 @@ def cold_lead_list(request, workspace, membership):
             combined = combined | c if filter_logic == 'OR' else combined & c
         qs = qs.filter(combined)
 
-    # ── Sort ─────────────────────────────────────────────────────────────────
-    sort     = request.GET.get('sort', 'heat')
-    sort_dir = request.GET.get('sort_dir', 'desc')
-    db_sort  = _SORT_FIELD_MAP.get(sort, 'heat_order')
-    prefix   = '-' if sort_dir == 'desc' else ''
-    qs = qs.order_by(f'{prefix}{db_sort}', '-created_at')
+    # ── Multi-level sort (s1/d1 … s5/d5); falls back to old sort/sort_dir ───
+    sort_levels = []
+    for i in range(1, 6):
+        sf = request.GET.get(f's{i}', '').strip()
+        sd = request.GET.get(f'd{i}', 'desc').strip()
+        if sf and sf in _SORT_FIELD_MAP:
+            sort_levels.append({'field': sf, 'dir': sd if sd in ('asc', 'desc') else 'desc'})
+    if not sort_levels:
+        # Backward compat with old single-level sort params
+        old_field = request.GET.get('sort', 'heat')
+        old_dir   = request.GET.get('sort_dir', 'desc')
+        sort_levels = [{'field': old_field if old_field in _SORT_FIELD_MAP else 'heat',
+                        'dir':   old_dir   if old_dir   in ('asc', 'desc') else 'desc'}]
+
+    order_args = []
+    for sl in sort_levels:
+        db_field = _SORT_FIELD_MAP.get(sl['field'], 'heat_order')
+        order_args.append(f"-{db_field}" if sl['dir'] == 'desc' else db_field)
+    order_args.append('-created_at')
+    qs = qs.order_by(*order_args)
+
+    primary_sort_field = sort_levels[0]['field']
+    primary_sort_dir   = sort_levels[0]['dir']
+
+    # ── Active saved-filter pill ─────────────────────────────────────────────
+    try:
+        active_pill_id = int(request.GET.get('active_pill_id', ''))
+    except (ValueError, TypeError):
+        active_pill_id = None
 
     # ── Counts + pagination ──────────────────────────────────────────────────
     total    = Contact.objects.filter(workspace=workspace, stage='cold_lead').count()
@@ -2950,48 +2998,63 @@ def cold_lead_list(request, workspace, membership):
     saved_filters = list(
         SavedFilter.objects
         .filter(workspace=workspace, user=request.user)
-        .values('id', 'name', 'filter_state')
+        .values('id', 'name', 'emoji', 'filter_state')
     )
 
     return render(request, 'crm/cold_lead_list.html', {
-        'contacts':        page_obj,
-        'page_obj':        page_obj,
-        'total':           total,
-        'count':           count,
-        'q':               q,
-        'chips':           chips,
-        'chips_json':      json.dumps(chips),
-        'filter_rows_json': json.dumps(filter_rows),
-        'filter_logic':    filter_logic,
-        'sort':            sort,
-        'sort_dir':        sort_dir,
-        'saved_filters':   json.dumps(saved_filters),
-        'quick_chips':     _QUICK_CHIPS,
-        'heat_meta':       HEAT_META,
-        'outcome_choices': CALL_OUTCOME_CHOICES,
-        'workspace':       workspace,
-        'filters_active':  bool(q or chips or filter_rows),
+        'contacts':           page_obj,
+        'page_obj':           page_obj,
+        'total':              total,
+        'count':              count,
+        'q':                  q,
+        'chips':              chips,
+        'chips_json':         json.dumps(chips),
+        'filter_rows_json':   json.dumps(filter_rows),
+        'filter_logic':       filter_logic,
+        'sort_levels_json':   json.dumps(sort_levels),
+        'primary_sort_field': primary_sort_field,
+        'primary_sort_dir':   primary_sort_dir,
+        'saved_filters':      json.dumps(saved_filters),
+        'active_pill_id':     active_pill_id,
+        'quick_chips':        _QUICK_CHIPS,
+        'heat_meta':          HEAT_META,
+        'outcome_choices':    CALL_OUTCOME_CHOICES,
+        'workspace':          workspace,
+        'filters_active':     bool(q or chips or filter_rows),
     })
 
 
 @_api_workspace_required
 @require_POST
 def saved_filter_save(request, workspace, membership):
-    data = json.loads(request.body)
-    name  = data.get('name', '').strip()
-    state = data.get('state', {})
+    data      = json.loads(request.body)
+    name      = data.get('name', '').strip()
+    state     = data.get('state', {})
+    emoji     = data.get('emoji', '').strip()[:8]
+    update_id = data.get('update_id')
+
+    if update_id:
+        obj = get_object_or_404(SavedFilter, pk=update_id, workspace=workspace, user=request.user)
+        obj.filter_state = state
+        if emoji:
+            obj.emoji = emoji
+        obj.save(update_fields=['filter_state', 'emoji'])
+        return JsonResponse({'id': obj.pk, 'name': obj.name, 'emoji': obj.emoji, 'created': False})
+
     if not name:
         return JsonResponse({'error': 'Name is required'}, status=400)
-    if SavedFilter.objects.filter(workspace=workspace, user=request.user).count() >= 20:
-        return JsonResponse({'error': 'Maximum 20 saved filters reached'}, status=400)
+    if SavedFilter.objects.filter(workspace=workspace, user=request.user).count() >= 25:
+        return JsonResponse({'error': 'Maximum 25 saved filters reached'}, status=400)
     obj, created = SavedFilter.objects.get_or_create(
         workspace=workspace, user=request.user, name=name,
-        defaults={'filter_state': state},
+        defaults={'filter_state': state, 'emoji': emoji},
     )
     if not created:
         obj.filter_state = state
-        obj.save(update_fields=['filter_state'])
-    return JsonResponse({'id': obj.pk, 'name': obj.name, 'created': created})
+        if emoji:
+            obj.emoji = emoji
+        obj.save(update_fields=['filter_state', 'emoji'])
+    return JsonResponse({'id': obj.pk, 'name': obj.name, 'emoji': obj.emoji, 'created': created})
 
 
 @_api_workspace_required

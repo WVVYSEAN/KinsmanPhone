@@ -303,6 +303,7 @@ class Contact(models.Model):
     reason_for_sale      = models.CharField(max_length=200, blank=True, default='')
     causality_notes      = models.TextField(blank=True, default='')
     created_at         = models.DateTimeField(auto_now_add=True)
+    updated_at         = models.DateTimeField(auto_now=True)
     touchpoints        = GenericRelation('TouchPoint')
 
     class Meta:
@@ -795,6 +796,7 @@ class SavedFilter(models.Model):
     user         = models.ForeignKey('auth.User', on_delete=models.CASCADE,
                        related_name='saved_filters')
     name         = models.CharField(max_length=200)
+    emoji        = models.CharField(max_length=8, blank=True, default='')
     filter_state = models.JSONField(default=dict)
     created_at   = models.DateTimeField(auto_now_add=True)
 
