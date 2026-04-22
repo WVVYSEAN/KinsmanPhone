@@ -139,6 +139,8 @@ The cold lead list lives at `/contacts/cold_lead/` and is served by `cold_lead_l
 
 **Pagination:** 100 per page via Django's `Paginator`.
 
+**JS init rule — do not call `submitForm()` during page load.** `addFilterRow` accepts an `autoSubmit` parameter (default `true`). Always pass `false` when restoring rows from server state on `DOMContentLoaded`, otherwise every render with active filters triggers an immediate re-submit → infinite reload loop. The table headers are always rendered (empty state uses `{% empty %}` inside `<tbody>`) so sort columns remain clickable even when filters return 0 results.
+
 ### URL Ordering
 
 The wildcard route `<str:model_type>/<str:stage>/` must stay **last** in `crm/urls.py` — it catches paths like `/contact/cold_lead/`. All `/api/...` routes must be declared above it. The contact detail route `contact/<int:pk>/` and the cold lead list route `contacts/cold_lead/` must also be above the wildcard.
