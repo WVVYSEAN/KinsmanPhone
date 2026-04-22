@@ -113,9 +113,35 @@ The app is phone-call-first. Leads are only imported from Apify if they have a p
 
 **Email outreach default**: `email_outreach_enabled` defaults to `False` for all contacts. This is separate from `ai_managed` (which controls AI auto-replies to inbound). Do not conflate them.
 
+### Cold Lead List — Search, Filter & Sort
+
+The cold lead list lives at `/contacts/cold_lead/` and is served by `cold_lead_list` in `views.py` (registered **before** the wildcard, so it overrides it for that exact path). All filtering and sorting is **server-side** — no client-side table engine.
+
+**Features:**
+- Global search (name, email, company) — debounced 250 ms, auto-submits the form
+- Quick filter chips — hardcoded presets: Ready to Call, Hot Leads, Responded, Added This Week, Not Yet Contacted
+- Filter builder — multi-row, field + operator + value; operators are contextual by field type (text/select/boolean/date/presence); AND/OR logic toggle appears at 2+ rows
+- Column-click sort with direction toggle; defaults to heat descending
+- Saved filter sets — persisted per user via the `SavedFilter` model (max 20); save/load/delete via modal + dropdown
+
+**`SavedFilter` model** (migration `0033_savedfilter`):
+- Fields: `workspace`, `user`, `name`, `filter_state` (JSONField), `created_at`
+- `filter_state` stores: `{q, chips, filters:[{field,op,val}], filter_logic, sort, sort_dir}`
+- Unique on `(workspace, user, name)`
+
+**API endpoints:**
+- `POST /api/saved-filters/save/` — upsert by name; body `{name, state}`
+- `POST /api/saved-filters/<pk>/delete/` — delete owned filter
+
+**Filter helper `_build_filter_q(field, op, val)`** in `views.py` returns a `Q` object for one row. Supported fields: `name`, `email`, `company`, `role`, `location`, `industry`, `heat`, `called`, `call_outcome`, `phone`, `created_at`.
+
+**URL params format:** `q=`, `chip=` (repeatable), `ff0=`/`fo0=`/`fv0=` per filter row, `filter_logic=AND|OR`, `sort=`, `sort_dir=asc|desc`. The server reads `ff*` keys via regex so row deletions leaving index gaps are handled correctly.
+
+**Pagination:** 100 per page via Django's `Paginator`.
+
 ### URL Ordering
 
-The wildcard route `<str:model_type>/<str:stage>/` must stay **last** in `crm/urls.py` — it catches paths like `/contact/cold_lead/`. All `/api/...` routes must be declared above it. The contact detail route `contact/<int:pk>/` must also be above the wildcard.
+The wildcard route `<str:model_type>/<str:stage>/` must stay **last** in `crm/urls.py` — it catches paths like `/contact/cold_lead/`. All `/api/...` routes must be declared above it. The contact detail route `contact/<int:pk>/` and the cold lead list route `contacts/cold_lead/` must also be above the wildcard.
 
 ### Migration Conventions
 

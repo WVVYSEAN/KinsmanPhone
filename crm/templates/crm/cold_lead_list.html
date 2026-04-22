@@ -1,0 +1,602 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Cold Leads{% endblock %}
+
+{% block content %}
+<style>
+  .cl-chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.3rem 0.85rem; border-radius: 99px; font-size: 0.75rem;
+    font-weight: 600; cursor: pointer; border: 1.5px solid var(--border-default);
+    background: transparent; color: var(--text-secondary);
+    transition: all 140ms ease; white-space: nowrap;
+  }
+  .cl-chip:hover { border-color: var(--cyan); color: var(--cyan); }
+  .cl-chip.active {
+    background: rgba(0,229,200,0.12); border-color: var(--cyan);
+    color: var(--cyan);
+  }
+  .cl-chip.chip-hero {
+    border-color: var(--amber); color: var(--amber);
+    font-size: 0.8rem; padding: 0.35rem 1rem;
+  }
+  .cl-chip.chip-hero.active { background: rgba(251,191,36,0.12); }
+  .cl-chip.chip-hero:hover  { background: rgba(251,191,36,0.08); }
+
+  .filter-row { display: flex; gap: 0.5rem; align-items: center; }
+  .filter-row + .filter-row { margin-top: 0.5rem; }
+
+  .sort-th { cursor: pointer; user-select: none; white-space: nowrap; }
+  .sort-th:hover { color: var(--cyan) !important; }
+  .sort-th.active-sort { color: var(--cyan) !important; }
+
+  #results-count-val { display: inline-block; transition: transform 160ms ease; }
+  #results-count-val.pulse { transform: scale(1.18); color: var(--cyan); }
+
+  .logic-btn {
+    padding: 0.2rem 0.65rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+    border: 1.5px solid var(--border-default); background: transparent;
+    color: var(--text-tertiary); cursor: pointer; transition: all 120ms ease;
+    letter-spacing: 0.05em;
+  }
+  .logic-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,200,0.10); }
+
+  .cl-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+  }
+</style>
+
+<main class="max-w-7xl mx-auto px-8 py-6 space-y-4">
+
+  <!-- ── Page header ── -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-bold" style="color:var(--text-primary)">Cold Leads</h1>
+      <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">{{ total }} total in pipeline</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Saved filters dropdown -->
+      <div class="relative" id="saved-filters-wrap" style="display:none">
+        <select id="saved-filter-select" class="wvvy-input" style="min-width:180px;font-size:0.8125rem">
+          <option value="">Load saved filter…</option>
+        </select>
+      </div>
+      <button type="button" onclick="openSaveModal()" class="wvvy-btn-ghost" style="font-size:0.8125rem;display:flex;align-items:center;gap:0.4rem">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+        Save Filter
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Main filter form ── -->
+  <form id="filter-form" method="get" action="">
+
+    <!-- Sort state (updated by JS on column click) -->
+    <input type="hidden" name="sort"         id="sort-input"    value="{{ sort }}">
+    <input type="hidden" name="sort_dir"     id="sort-dir-input" value="{{ sort_dir }}">
+    <input type="hidden" name="filter_logic" id="logic-input"   value="{{ filter_logic }}">
+    <!-- Filter rows injected by JS as ff0/fo0/fv0 … -->
+    <div id="filter-hidden-container"></div>
+
+    <!-- Search bar -->
+    <div class="relative">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:var(--text-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input type="text" name="q" id="search-q" value="{{ q }}"
+             placeholder="Search by name, email, or company…"
+             class="wvvy-input w-full"
+             style="padding-left:2.25rem;font-size:0.9rem"
+             autocomplete="off">
+    </div>
+
+    <!-- Quick chips -->
+    <div class="flex flex-wrap gap-2">
+      {% for chip_key, chip_label in quick_chips %}
+      <button type="button"
+              class="cl-chip {% if chip_key == 'ready_to_call' %}chip-hero{% endif %} {% if chip_key in chips %}active{% endif %}"
+              data-chip="{{ chip_key }}"
+              onclick="toggleChip('{{ chip_key }}', this)">
+        {{ chip_label }}
+      </button>
+      {% endfor %}
+      <!-- hidden chip inputs (populated by JS) -->
+      <div id="chip-inputs"></div>
+    </div>
+
+    <!-- Filter builder panel -->
+    <div id="filter-panel" style="display:none">
+      <div class="wvvy-card px-4 py-4 space-y-2">
+        <!-- Logic toggle (shown when ≥2 rows) -->
+        <div id="logic-row" class="flex items-center gap-2 pb-1" style="display:none !important">
+          <span class="text-xs" style="color:var(--text-tertiary)">Match</span>
+          <button type="button" id="logic-and" class="logic-btn {% if filter_logic == 'AND' %}active{% endif %}" onclick="setLogic('AND')">AND</button>
+          <button type="button" id="logic-or"  class="logic-btn {% if filter_logic == 'OR'  %}active{% endif %}" onclick="setLogic('OR')">OR</button>
+          <span class="text-xs" style="color:var(--text-tertiary)">of the following filters</span>
+        </div>
+
+        <!-- Dynamic filter rows rendered by JS -->
+        <div id="filter-rows-ui"></div>
+
+        <button type="button" onclick="addFilterRow()"
+                style="font-size:0.75rem;color:var(--cyan);font-weight:600;background:none;border:none;cursor:pointer;padding:0.25rem 0;margin-top:0.25rem">
+          + Add Filter
+        </button>
+      </div>
+    </div>
+
+    <!-- Add filter trigger (when panel is hidden) -->
+    <div id="add-filter-trigger">
+      <button type="button" onclick="showFilterPanel()"
+              style="font-size:0.75rem;color:var(--text-tertiary);font-weight:500;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h6"/></svg>
+        Add Filter
+      </button>
+    </div>
+
+    <!-- Results summary bar -->
+    <div class="flex items-center justify-between py-1.5 px-1" style="border-bottom:1px solid var(--border-subtle)">
+      <span class="text-xs" style="color:var(--text-secondary)">
+        Showing <strong id="results-count-val" style="color:var(--text-primary)">{{ count }}</strong>
+        of {{ total }} leads
+        {% if filters_active %}
+        &nbsp;·&nbsp;
+        <button type="button" onclick="clearAll()" style="font-size:0.75rem;color:var(--cyan);font-weight:600;background:none;border:none;cursor:pointer">Clear all</button>
+        {% endif %}
+      </span>
+      <span class="text-xs" style="color:var(--text-tertiary)">
+        Sorted by {{ sort }}{% if sort_dir == 'desc' %} ↓{% else %} ↑{% endif %}
+      </span>
+    </div>
+
+  </form><!-- end #filter-form -->
+
+  <!-- ── Lead table ── -->
+  {% if contacts %}
+  <div class="wvvy-card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm whitespace-nowrap">
+        <thead>
+          <tr class="text-left" style="background:var(--bg-card);border-bottom:1px solid var(--border-subtle)">
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'name' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('name')">
+              Name {% if sort == 'name' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'heat' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('heat')">
+              Heat {% if sort == 'heat' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'company' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('company')">
+              Company {% if sort == 'company' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+            <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Phone</th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'called' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('called')">
+              Called {% if sort == 'called' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'call_outcome' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('call_outcome')">
+              Outcome {% if sort == 'call_outcome' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'location' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('location')">
+              Location {% if sort == 'location' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if sort == 'created_at' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('created_at')">
+              Added {% if sort == 'created_at' %}{% if sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y" style="border-color:var(--border-subtle)">
+          {% for c in contacts %}
+          <tr class="wvvy-tr-hover transition-colors">
+            <td class="px-4 py-2.5 font-medium">
+              <a href="/contact/{{ c.id }}/"
+                 style="color:var(--text-primary);font-weight:500;text-decoration:none"
+                 onmouseenter="this.style.color='var(--cyan)'"
+                 onmouseleave="this.style.color='var(--text-primary)'">{{ c.name }}</a>
+            </td>
+            <td class="px-4 py-2.5">
+              <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ c.heat_badge }}">{{ c.get_heat_display }}</span>
+            </td>
+            <td class="px-4 py-2.5" style="color:var(--text-secondary)">{{ c.company|default:"—" }}</td>
+            <td class="px-4 py-2.5">
+              {% if c.phone %}
+              <a href="tel:{{ c.phone }}" style="color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:0.8rem;text-decoration:none;opacity:0.85"
+                 onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.85'">{{ c.phone }}</a>
+              {% else %}
+              <span style="color:var(--text-tertiary)">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5">
+              {% if c.called %}
+              <span class="inline-flex items-center gap-1 text-xs font-semibold" style="color:#34d399">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                Called
+              </span>
+              {% else %}
+              <span class="text-xs" style="color:var(--text-tertiary)">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5">
+              {% if c.call_outcome %}
+              <span class="text-xs font-medium" style="color:var(--text-secondary)">{{ c.get_call_outcome_display }}</span>
+              {% else %}
+              <span style="color:var(--text-tertiary)">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-2.5" style="color:var(--text-tertiary)">{{ c.location|default:"—" }}</td>
+            <td class="px-4 py-2.5" style="color:var(--text-tertiary);font-family:'JetBrains Mono',monospace;font-size:0.8rem">
+              {{ c.created_at|date:"M j, Y" }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div class="flex items-center justify-center gap-2 pt-2">
+    {% if page_obj.has_previous %}
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+       class="wvvy-btn-ghost" style="font-size:0.8125rem">← Prev</a>
+    {% endif %}
+    <span class="text-sm" style="color:var(--text-tertiary)">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+       class="wvvy-btn-ghost" style="font-size:0.8125rem">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="wvvy-card py-16 text-center">
+    <p class="text-lg font-semibold mb-1" style="color:var(--text-secondary)">No leads match your filters</p>
+    <p class="text-sm mb-4" style="color:var(--text-tertiary)">Try adjusting your search or filters.</p>
+    <a href="/contacts/cold_lead/" class="wvvy-btn-primary" style="font-size:0.8125rem">Clear Filters</a>
+  </div>
+  {% endif %}
+
+</main>
+
+<!-- ── Save Filter Modal ── -->
+<div id="save-modal" style="display:none" class="cl-modal-backdrop">
+  <div class="wvvy-modal-panel w-full max-w-sm">
+    <div class="px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
+      <h2 class="text-base font-bold" style="color:var(--text-primary)">Save Filter Set</h2>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Name</label>
+        <input id="save-filter-name" type="text" placeholder="e.g. Texas CFOs $5M+"
+               class="wvvy-input w-full" />
+      </div>
+      <p id="save-filter-error" class="hidden text-xs text-red-400"></p>
+    </div>
+    <div class="px-6 py-4 flex justify-end gap-3" style="border-top:1px solid var(--border-subtle)">
+      <button type="button" onclick="closeSaveModal()" class="wvvy-btn-ghost">Cancel</button>
+      <button type="button" onclick="saveFilter()" class="wvvy-btn-primary" id="save-filter-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Data from server ──────────────────────────────────────────────────────────
+const _initialRows   = {{ filter_rows_json|safe }};
+const _savedFilters  = {{ saved_filters|safe }};
+const _activeChips   = new Set({{ chips_json|safe }});
+let   _rowCounter    = _initialRows.length;
+
+// ── Field/operator/value metadata ────────────────────────────────────────────
+const FILTER_FIELDS = [
+  {val:'name',         label:'Name',              type:'text'},
+  {val:'email',        label:'Email',             type:'text'},
+  {val:'company',      label:'Company',           type:'text'},
+  {val:'role',         label:'Role / Title',      type:'text'},
+  {val:'location',     label:'Location',          type:'text'},
+  {val:'industry',     label:'Industry',          type:'text'},
+  {val:'heat',         label:'Heat Level',        type:'select'},
+  {val:'called',       label:'Called',            type:'boolean'},
+  {val:'call_outcome', label:'Call Outcome',      type:'select'},
+  {val:'phone',        label:'Phone Number',      type:'presence'},
+  {val:'created_at',   label:'Date Added',        type:'date'},
+];
+
+const OPERATORS = {
+  text:     [{op:'contains',label:'Contains'},{op:'not_contains',label:'Does Not Contain'},{op:'equals',label:'Equals'},{op:'not_equals',label:'Does Not Equal'},{op:'starts_with',label:'Starts With'},{op:'ends_with',label:'Ends With'},{op:'is_empty',label:'Is Empty'},{op:'is_not_empty',label:'Is Not Empty'}],
+  select:   [{op:'is',label:'Is'},{op:'is_not',label:'Is Not'},{op:'is_any_of',label:'Is Any Of'},{op:'is_none_of',label:'Is None Of'}],
+  boolean:  [{op:'is_true',label:'Is True'},{op:'is_false',label:'Is False'}],
+  presence: [{op:'is_not_empty',label:'Has Phone'},{op:'is_empty',label:'No Phone'}],
+  date:     [{op:'is_date',label:'Is'},{op:'is_before',label:'Is Before'},{op:'is_after',label:'Is After'},{op:'in_last_x_days',label:'In the Last X Days'},{op:'has_no_value',label:'Has No Value'}],
+};
+
+const SELECT_OPTIONS = {
+  heat:         [{val:'cold',label:'Cold'},{val:'medium',label:'Medium'},{val:'warm',label:'Warm'},{val:'active',label:'Active Client'},{val:'dormant',label:'Dormant'}],
+  call_outcome: [{val:'interested',label:'Interested'},{val:'not_now',label:'Not Now'},{val:'not_interested',label:'Not Interested'},{val:'booked',label:'Discovery Booked'},{val:'no_answer',label:'No Answer'}],
+};
+
+const NO_VALUE_OPS = new Set(['is_empty','is_not_empty','is_true','is_false','has_no_value']);
+
+// ── Filter row rendering ──────────────────────────────────────────────────────
+function getFieldType(fieldVal) {
+  return (FILTER_FIELDS.find(f => f.val === fieldVal) || {}).type || 'text';
+}
+
+function buildValueInput(idx, fieldVal, op, val) {
+  if (NO_VALUE_OPS.has(op)) return '';
+  const type = getFieldType(fieldVal);
+  if (type === 'select' || type === 'select_multi') {
+    const opts = SELECT_OPTIONS[fieldVal] || [];
+    if (op === 'is_any_of' || op === 'is_none_of') {
+      return `<input name="fv${idx}" type="text" value="${escAttr(val)}" placeholder="val1, val2…" class="wvvy-input" style="min-width:140px">`;
+    }
+    const optsHtml = opts.map(o => `<option value="${o.val}"${o.val===val?' selected':''}>${o.label}</option>`).join('');
+    return `<select name="fv${idx}" class="wvvy-input">${optsHtml}</select>`;
+  }
+  if (type === 'date') {
+    if (op === 'in_last_x_days') {
+      return `<input name="fv${idx}" type="number" min="1" value="${escAttr(val)||'7'}" class="wvvy-input" style="width:80px"> <span style="font-size:0.75rem;color:var(--text-tertiary)">days</span>`;
+    }
+    return `<input name="fv${idx}" type="date" value="${escAttr(val)}" class="wvvy-input">`;
+  }
+  return `<input name="fv${idx}" type="text" value="${escAttr(val)}" placeholder="Value…" class="wvvy-input" style="min-width:140px">`;
+}
+
+function renderFilterRow(idx, initialField, initialOp, initialVal) {
+  const type     = getFieldType(initialField);
+  const ops      = OPERATORS[type] || OPERATORS.text;
+  const fieldOpts = FILTER_FIELDS.map(f =>
+    `<option value="${f.val}"${f.val===initialField?' selected':''}>${f.label}</option>`
+  ).join('');
+  const opOpts = ops.map(o =>
+    `<option value="${o.op}"${o.op===initialOp?' selected':''}>${o.label}</option>`
+  ).join('');
+  const valInput = buildValueInput(idx, initialField, initialOp, initialVal);
+
+  const row = document.createElement('div');
+  row.className = 'filter-row';
+  row.id = `fr-${idx}`;
+  row.innerHTML = `
+    <select name="ff${idx}" class="wvvy-input" style="min-width:150px" onchange="onFieldChange(${idx}, this.value)">
+      <option value="">Field…</option>${fieldOpts}
+    </select>
+    <select name="fo${idx}" id="op-sel-${idx}" class="wvvy-input" style="min-width:160px" onchange="onOpChange(${idx}, this.value)">
+      ${opOpts}
+    </select>
+    <span id="val-wrap-${idx}" class="flex items-center gap-2">${valInput}</span>
+    <button type="button" onclick="removeFilterRow(${idx})" style="color:var(--text-tertiary);background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;padding:0 0.25rem" onmouseenter="this.style.color='var(--rose)'" onmouseleave="this.style.color='var(--text-tertiary)'">×</button>
+  `;
+  return row;
+}
+
+function onFieldChange(idx, fieldVal) {
+  const type    = getFieldType(fieldVal);
+  const ops     = OPERATORS[type] || OPERATORS.text;
+  const opSel   = document.getElementById(`op-sel-${idx}`);
+  opSel.innerHTML = ops.map(o => `<option value="${o.op}">${o.label}</option>`).join('');
+  onOpChange(idx, opSel.value);
+  updateLogicToggle();
+}
+
+function onOpChange(idx, op) {
+  const fieldVal = document.querySelector(`#fr-${idx} select[name="ff${idx}"]`)?.value || '';
+  const wrap = document.getElementById(`val-wrap-${idx}`);
+  if (!wrap) return;
+  wrap.innerHTML = buildValueInput(idx, fieldVal, op, '');
+}
+
+function addFilterRow(initialField='', initialOp='', initialVal='') {
+  showFilterPanel();
+  const idx = _rowCounter++;
+  const container = document.getElementById('filter-rows-ui');
+  container.appendChild(renderFilterRow(idx, initialField, initialOp, initialVal));
+  updateLogicToggle();
+  if (initialField) submitForm();
+}
+
+function removeFilterRow(idx) {
+  document.getElementById(`fr-${idx}`)?.remove();
+  updateLogicToggle();
+  submitForm();
+}
+
+function updateLogicToggle() {
+  const rows = document.querySelectorAll('#filter-rows-ui .filter-row');
+  const lr = document.getElementById('logic-row');
+  if (lr) lr.style.display = rows.length >= 2 ? 'flex' : 'none';
+}
+
+// ── Filter panel show/hide ────────────────────────────────────────────────────
+function showFilterPanel() {
+  document.getElementById('filter-panel').style.display = '';
+  document.getElementById('add-filter-trigger').style.display = 'none';
+}
+
+// ── Chips ─────────────────────────────────────────────────────────────────────
+function toggleChip(key, btn) {
+  if (_activeChips.has(key)) {
+    _activeChips.delete(key);
+    btn.classList.remove('active');
+  } else {
+    _activeChips.add(key);
+    btn.classList.add('active');
+  }
+  syncChipInputs();
+  submitForm();
+}
+
+function syncChipInputs() {
+  const container = document.getElementById('chip-inputs');
+  container.innerHTML = '';
+  _activeChips.forEach(k => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'chip'; inp.value = k;
+    container.appendChild(inp);
+  });
+}
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+function setSort(field) {
+  const curSort = document.getElementById('sort-input').value;
+  const curDir  = document.getElementById('sort-dir-input').value;
+  let   newDir  = 'desc';
+  if (curSort === field) {
+    newDir = curDir === 'desc' ? 'asc' : 'desc';
+  }
+  document.getElementById('sort-input').value    = field;
+  document.getElementById('sort-dir-input').value = newDir;
+  submitForm();
+}
+
+// ── Logic toggle ──────────────────────────────────────────────────────────────
+function setLogic(val) {
+  document.getElementById('logic-input').value = val;
+  document.getElementById('logic-and').classList.toggle('active', val === 'AND');
+  document.getElementById('logic-or').classList.toggle('active',  val === 'OR');
+  submitForm();
+}
+
+// ── Clear all ─────────────────────────────────────────────────────────────────
+function clearAll() {
+  window.location.href = '/contacts/cold_lead/';
+}
+
+// ── Form submission ───────────────────────────────────────────────────────────
+let _submitTimer = null;
+function submitForm(delay=0) {
+  clearTimeout(_submitTimer);
+  _submitTimer = setTimeout(() => {
+    document.getElementById('filter-form').submit();
+  }, delay);
+}
+
+// ── Save filter modal ─────────────────────────────────────────────────────────
+function openSaveModal()  { document.getElementById('save-modal').style.display = 'flex'; document.getElementById('save-filter-name').focus(); }
+function closeSaveModal() { document.getElementById('save-modal').style.display = 'none'; }
+
+function getCurrentState() {
+  const rows = Array.from(document.querySelectorAll('#filter-rows-ui .filter-row')).map(row => {
+    const idx = row.id.replace('fr-', '');
+    return {
+      field: row.querySelector(`[name="ff${idx}"]`)?.value || '',
+      op:    row.querySelector(`[name="fo${idx}"]`)?.value || '',
+      val:   row.querySelector(`[name="fv${idx}"]`)?.value || '',
+    };
+  });
+  return {
+    q:            document.getElementById('search-q').value,
+    chips:        [..._activeChips],
+    filters:      rows,
+    filter_logic: document.getElementById('logic-input').value,
+    sort:         document.getElementById('sort-input').value,
+    sort_dir:     document.getElementById('sort-dir-input').value,
+  };
+}
+
+function saveFilter() {
+  const name  = document.getElementById('save-filter-name').value.trim();
+  const errEl = document.getElementById('save-filter-error');
+  const btn   = document.getElementById('save-filter-btn');
+  if (!name) { errEl.textContent = 'Please enter a name.'; errEl.classList.remove('hidden'); return; }
+  errEl.classList.add('hidden');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  fetch('/api/saved-filters/save/', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken':getCsrf()},
+    body: JSON.stringify({name, state: getCurrentState()}),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { errEl.textContent = data.error; errEl.classList.remove('hidden'); return; }
+      showToast(`"${name}" saved`);
+      closeSaveModal();
+      // Add to dropdown if not already there
+      const sel = document.getElementById('saved-filter-select');
+      const existing = Array.from(sel.options).find(o => o.dataset.filterId == data.id);
+      if (existing) {
+        existing.dataset.state = JSON.stringify(data.state || getCurrentState());
+      } else {
+        const opt = new Option(data.name, data.id);
+        opt.dataset.filterId = data.id;
+        opt.dataset.state = JSON.stringify(getCurrentState());
+        sel.appendChild(opt);
+      }
+      document.getElementById('saved-filters-wrap').style.display = '';
+    })
+    .catch(() => showToast('Save failed', true))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Save'; });
+}
+
+function applyFilter(sfObj) {
+  const s = sfObj.filter_state || {};
+  // Build URL params from saved state
+  const params = new URLSearchParams();
+  if (s.q) params.set('q', s.q);
+  (s.chips || []).forEach(c => params.append('chip', c));
+  (s.filters || []).forEach((f, i) => {
+    if (f.field) { params.set(`ff${i}`, f.field); params.set(`fo${i}`, f.op); params.set(`fv${i}`, f.val || ''); }
+  });
+  if (s.filter_logic) params.set('filter_logic', s.filter_logic);
+  if (s.sort)         params.set('sort', s.sort);
+  if (s.sort_dir)     params.set('sort_dir', s.sort_dir);
+  window.location.href = '/contacts/cold_lead/?' + params.toString();
+}
+
+// ── Init on page load ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Restore filter rows from server state
+  if (_initialRows.length) {
+    showFilterPanel();
+    _initialRows.forEach(r => addFilterRow(r.field, r.op, r.val));
+    // Reset counter to max idx + 1
+    _rowCounter = Math.max(..._initialRows.map(r => r.idx + 1), _initialRows.length);
+  }
+
+  // Sync chip hidden inputs from server-restored active set
+  syncChipInputs();
+
+  // Saved filters dropdown
+  const sel = document.getElementById('saved-filter-select');
+  if (_savedFilters.length) {
+    document.getElementById('saved-filters-wrap').style.display = '';
+    _savedFilters.forEach(sf => {
+      const opt = new Option(sf.name, sf.id);
+      opt.dataset.filterId = sf.id;
+      opt.dataset.state    = JSON.stringify(sf);
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      const opt = sel.selectedOptions[0];
+      if (!opt.value) return;
+      try { applyFilter(JSON.parse(opt.dataset.state)); } catch(e) {}
+      sel.value = '';
+    });
+  }
+
+  // Debounced search
+  const searchInput = document.getElementById('search-q');
+  let searchTimer = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => submitForm(), 250);
+  });
+
+  // Results count pulse animation
+  const countEl = document.getElementById('results-count-val');
+  if (countEl) {
+    countEl.classList.add('pulse');
+    setTimeout(() => countEl.classList.remove('pulse'), 400);
+  }
+});
+
+// ── Escape closes save modal ──────────────────────────────────────────────────
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSaveModal(); });
+
+function escAttr(s) { return String(s ?? '').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+</script>
+{% endblock %}

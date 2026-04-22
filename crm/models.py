@@ -786,3 +786,21 @@ class DripEditExample(models.Model):
 
     def __str__(self):
         return f'DripEditExample({self.workspace}, {self.created_at:%Y-%m-%d})'
+
+
+class SavedFilter(models.Model):
+    """Per-user saved filter/sort preset for the Cold Lead list."""
+    workspace    = models.ForeignKey(Workspace, on_delete=models.CASCADE,
+                       related_name='saved_filters')
+    user         = models.ForeignKey('auth.User', on_delete=models.CASCADE,
+                       related_name='saved_filters')
+    name         = models.CharField(max_length=200)
+    filter_state = models.JSONField(default=dict)
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = [('workspace', 'user', 'name')]
+
+    def __str__(self):
+        return f'{self.name} ({self.user.email})'

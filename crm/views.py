@@ -10,17 +10,19 @@ from django.conf import settings as django_settings
 from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Avg, Sum, Count
+import datetime
+import re
+from django.db.models import Avg, Sum, Count, Case, When, IntegerField, Value, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .models import (STAGE_META, CALL_OUTCOME_CHOICES, Contact, Company, Opportunity, TouchPoint,
+from .models import (STAGE_META, HEAT_META, CALL_OUTCOME_CHOICES, Contact, Company, Opportunity, TouchPoint,
                      HeatSettings, calculate_score, auto_heat, InvitedEmail,
                      UserProfile, Workspace, WorkspaceMembership,
                      EmailThread, AICallLog, EmailTemplate, EmailImage,
-                     OutreachAttachment, EmailTemplateAttachment, TaskJob)
+                     OutreachAttachment, EmailTemplateAttachment, TaskJob, SavedFilter)
 
 MASTER_EMAIL   = django_settings.MASTER_EMAIL
 INBOUND_DOMAIN = 'nareosa.resend.app'
@@ -2779,4 +2781,222 @@ def contact_save_financials(request, pk, workspace, membership):
         if f in data:
             setattr(contact, f, data[f])
     contact.save(update_fields=fields)
+    return JsonResponse({'ok': True})
+
+
+# ── Cold Lead List (search / filter / sort) ────────────────────────────────────
+
+_HEAT_ORDER = Case(
+    When(heat='active',  then=Value(5)),
+    When(heat='warm',    then=Value(4)),
+    When(heat='medium',  then=Value(3)),
+    When(heat='cold',    then=Value(2)),
+    When(heat='dormant', then=Value(1)),
+    default=Value(0),
+    output_field=IntegerField(),
+)
+
+_SORT_FIELD_MAP = {
+    'name':         'name',
+    'company':      'company',
+    'location':     'location',
+    'industry':     'industry',
+    'called':       'called',
+    'call_outcome': 'call_outcome',
+    'created_at':   'created_at',
+    'heat':         'heat_order',
+}
+
+_FILTER_DB_FIELD = {
+    'name':         'name',
+    'email':        'email',
+    'company':      'company',
+    'role':         'role',
+    'location':     'location',
+    'industry':     'industry',
+    'heat':         'heat',
+    'called':       'called',
+    'call_outcome': 'call_outcome',
+    'phone':        'phone',
+    'created_at':   'created_at',
+}
+
+_QUICK_CHIPS = [
+    ('ready_to_call',   '📞 Ready to Call'),
+    ('hot_leads',       '🔥 Hot Leads'),
+    ('responded',       '💬 Responded'),
+    ('added_this_week', '📅 Added This Week'),
+    ('not_contacted',   '📬 Not Yet Contacted'),
+]
+
+
+def _build_filter_q(field, op, val):
+    """Return a Q object for one filter row, or None if invalid/unsupported."""
+    db = _FILTER_DB_FIELD.get(field)
+    if not db:
+        return None
+    try:
+        if op == 'contains':
+            return Q(**{f'{db}__icontains': val})
+        if op == 'not_contains':
+            return ~Q(**{f'{db}__icontains': val})
+        if op == 'equals':
+            return Q(**{f'{db}__iexact': val})
+        if op == 'not_equals':
+            return ~Q(**{f'{db}__iexact': val})
+        if op == 'starts_with':
+            return Q(**{f'{db}__istartswith': val})
+        if op == 'ends_with':
+            return Q(**{f'{db}__iendswith': val})
+        if op == 'is_empty':
+            return Q(**{f'{db}': ''}) | Q(**{f'{db}__isnull': True})
+        if op == 'is_not_empty':
+            return ~(Q(**{f'{db}': ''}) | Q(**{f'{db}__isnull': True}))
+        if op == 'is':
+            return Q(**{f'{db}': val})
+        if op == 'is_not':
+            return ~Q(**{f'{db}': val})
+        if op == 'is_any_of':
+            vals = [v.strip() for v in val.split(',') if v.strip()]
+            return Q(**{f'{db}__in': vals}) if vals else None
+        if op == 'is_none_of':
+            vals = [v.strip() for v in val.split(',') if v.strip()]
+            return ~Q(**{f'{db}__in': vals}) if vals else None
+        if op == 'is_true':
+            return Q(**{f'{db}': True})
+        if op == 'is_false':
+            return Q(**{f'{db}': False})
+        if op == 'is_date':
+            return Q(created_at__date=val)
+        if op == 'is_before':
+            return Q(created_at__date__lt=val)
+        if op == 'is_after':
+            return Q(created_at__date__gt=val)
+        if op == 'in_last_x_days':
+            from django.utils import timezone
+            days = int(val) if str(val).isdigit() else 7
+            return Q(created_at__gte=timezone.now() - datetime.timedelta(days=days))
+        if op == 'has_no_value':
+            return Q(created_at__isnull=True)
+    except Exception:
+        pass
+    return None
+
+
+@workspace_required
+def cold_lead_list(request, workspace, membership):
+    from django.core.paginator import Paginator
+    from django.utils import timezone
+
+    qs = (Contact.objects
+          .filter(workspace=workspace, stage='cold_lead')
+          .annotate(heat_order=_HEAT_ORDER))
+
+    # ── Text search ──────────────────────────────────────────────────────────
+    q = request.GET.get('q', '').strip()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(email__icontains=q) | Q(company__icontains=q))
+
+    # ── Quick chips ──────────────────────────────────────────────────────────
+    chips = request.GET.getlist('chip')
+    for chip in chips:
+        if chip == 'ready_to_call':
+            qs = qs.filter(phone__gt='', called=False)
+        elif chip == 'hot_leads':
+            qs = qs.filter(heat__in=['warm', 'active'])
+        elif chip == 'responded':
+            qs = qs.filter(call_outcome='interested')
+        elif chip == 'added_this_week':
+            qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=7))
+        elif chip == 'not_contacted':
+            qs = qs.filter(called=False)
+
+    # ── Filter builder rows ──────────────────────────────────────────────────
+    filter_logic = request.GET.get('filter_logic', 'AND')
+    filter_rows  = []
+    conditions   = []
+    for key in sorted((k for k in request.GET if re.match(r'^ff\d+$', k)),
+                      key=lambda k: int(k[2:])):
+        idx   = int(key[2:])
+        field = request.GET.get(f'ff{idx}', '').strip()
+        op    = request.GET.get(f'fo{idx}', '').strip()
+        val   = request.GET.get(f'fv{idx}', '').strip()
+        filter_rows.append({'field': field, 'op': op, 'val': val, 'idx': idx})
+        if field and op:
+            cond = _build_filter_q(field, op, val)
+            if cond is not None:
+                conditions.append(cond)
+
+    if conditions:
+        combined = conditions[0]
+        for c in conditions[1:]:
+            combined = combined | c if filter_logic == 'OR' else combined & c
+        qs = qs.filter(combined)
+
+    # ── Sort ─────────────────────────────────────────────────────────────────
+    sort     = request.GET.get('sort', 'heat')
+    sort_dir = request.GET.get('sort_dir', 'desc')
+    db_sort  = _SORT_FIELD_MAP.get(sort, 'heat_order')
+    prefix   = '-' if sort_dir == 'desc' else ''
+    qs = qs.order_by(f'{prefix}{db_sort}', '-created_at')
+
+    # ── Counts + pagination ──────────────────────────────────────────────────
+    total    = Contact.objects.filter(workspace=workspace, stage='cold_lead').count()
+    paginator = Paginator(qs, 100)
+    page_num  = request.GET.get('page', 1)
+    page_obj  = paginator.get_page(page_num)
+    count     = qs.count()
+
+    saved_filters = list(
+        SavedFilter.objects
+        .filter(workspace=workspace, user=request.user)
+        .values('id', 'name', 'filter_state')
+    )
+
+    return render(request, 'crm/cold_lead_list.html', {
+        'contacts':        page_obj,
+        'page_obj':        page_obj,
+        'total':           total,
+        'count':           count,
+        'q':               q,
+        'chips':           chips,
+        'chips_json':      json.dumps(chips),
+        'filter_rows_json': json.dumps(filter_rows),
+        'filter_logic':    filter_logic,
+        'sort':            sort,
+        'sort_dir':        sort_dir,
+        'saved_filters':   json.dumps(saved_filters),
+        'quick_chips':     _QUICK_CHIPS,
+        'heat_meta':       HEAT_META,
+        'outcome_choices': CALL_OUTCOME_CHOICES,
+        'workspace':       workspace,
+        'filters_active':  bool(q or chips or filter_rows),
+    })
+
+
+@_api_workspace_required
+@require_POST
+def saved_filter_save(request, workspace, membership):
+    data = json.loads(request.body)
+    name  = data.get('name', '').strip()
+    state = data.get('state', {})
+    if not name:
+        return JsonResponse({'error': 'Name is required'}, status=400)
+    if SavedFilter.objects.filter(workspace=workspace, user=request.user).count() >= 20:
+        return JsonResponse({'error': 'Maximum 20 saved filters reached'}, status=400)
+    obj, created = SavedFilter.objects.get_or_create(
+        workspace=workspace, user=request.user, name=name,
+        defaults={'filter_state': state},
+    )
+    if not created:
+        obj.filter_state = state
+        obj.save(update_fields=['filter_state'])
+    return JsonResponse({'id': obj.pk, 'name': obj.name, 'created': created})
+
+
+@_api_workspace_required
+@require_POST
+def saved_filter_delete(request, pk, workspace, membership):
+    obj = get_object_or_404(SavedFilter, pk=pk, workspace=workspace, user=request.user)
+    obj.delete()
     return JsonResponse({'ok': True})

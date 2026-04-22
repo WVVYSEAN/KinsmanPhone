@@ -87,6 +87,11 @@ urlpatterns = [
     path('api/contact/<int:pk>/email-outreach/',       views.contact_toggle_email_outreach, name='contact_toggle_email_outreach'),
     path('api/contact/<int:pk>/financials/',           views.contact_save_financials,       name='contact_save_financials'),
 
+    # Cold lead list (enhanced search/filter/sort) — must be before wildcard
+    path('contacts/cold_lead/',                        views.cold_lead_list,                name='cold_lead_list'),
+    path('api/saved-filters/save/',                    views.saved_filter_save,             name='saved_filter_save'),
+    path('api/saved-filters/<int:pk>/delete/',         views.saved_filter_delete,           name='saved_filter_delete'),
+
     # Wildcard — must stay last
     path('<str:model_type>/<str:stage>/', views.stage_list, name='stage_list'),
 ]
