@@ -326,6 +326,18 @@
       All Leads
     </a>
     <div class="top-bar-right">
+      <span id="stagePill" data-stage="{{ contact.stage }}"
+            style="font-size:11px;font-weight:700;letter-spacing:.05em;padding:4px 10px;border-radius:20px;text-transform:uppercase;transition:all .3s ease;
+            {% if contact.stage == 'cold_lead' %}background:rgba(107,114,128,.12);color:#9ca3af;border:1px solid rgba(107,114,128,.25)
+            {% elif contact.stage == 'warm_lead' %}background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.25)
+            {% elif contact.stage == 'discovery_call' %}background:rgba(129,140,248,.12);color:#818cf8;border:1px solid rgba(129,140,248,.25)
+            {% elif contact.stage == 'proposal' %}background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.25)
+            {% elif contact.stage == 'negotiation' %}background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.25)
+            {% elif contact.stage == 'closed_won' %}background:rgba(0,229,200,.10);color:#00e5c8;border:1px solid rgba(0,229,200,.25)
+            {% elif contact.stage == 'closed_lost' %}background:rgba(239,68,68,.10);color:#ef4444;border:1px solid rgba(239,68,68,.25)
+            {% else %}background:rgba(129,140,248,.12);color:#818cf8;border:1px solid rgba(129,140,248,.25){% endif %}">
+        {{ contact.get_stage_display }}
+      </span>
       <div class="heat-badge heat-{{ contact.heat }}">
         <span class="heat-dot"></span>
         {{ contact.get_heat_display }} · {{ heat_score }} pts
@@ -574,6 +586,30 @@
 const CONTACT_PK = {{ contact.pk }};
 const CSRF = getCsrf();
 
+const STAGE_STYLES = {
+  cold_lead:      { bg: 'rgba(107,114,128,.12)', color: '#9ca3af',  bd: 'rgba(107,114,128,.25)' },
+  warm_lead:      { bg: 'rgba(245,166,35,.12)',  color: '#f5a623',  bd: 'rgba(245,166,35,.25)'  },
+  discovery_call: { bg: 'rgba(129,140,248,.12)', color: '#818cf8',  bd: 'rgba(129,140,248,.25)' },
+  proposal:       { bg: 'rgba(34,197,94,.12)',   color: '#22c55e',  bd: 'rgba(34,197,94,.25)'   },
+  negotiation:    { bg: 'rgba(245,166,35,.12)',  color: '#f5a623',  bd: 'rgba(245,166,35,.25)'  },
+  closed_won:     { bg: 'rgba(0,229,200,.10)',   color: '#00e5c8',  bd: 'rgba(0,229,200,.25)'   },
+  closed_lost:    { bg: 'rgba(239,68,68,.10)',   color: '#ef4444',  bd: 'rgba(239,68,68,.25)'   },
+};
+
+function updateStagePill(newStage, newLabel) {
+  const pill = document.getElementById('stagePill');
+  if (!pill) return;
+  const s = STAGE_STYLES[newStage] || STAGE_STYLES.cold_lead;
+  pill.dataset.stage = newStage;
+  pill.textContent   = newLabel;
+  pill.style.setProperty('--stage-bg',    s.bg);
+  pill.style.setProperty('--stage-color', s.color);
+  pill.style.setProperty('--stage-bd',    s.bd);
+  pill.style.background = s.bg;
+  pill.style.color      = s.color;
+  pill.style.border     = `1px solid ${s.bd}`;
+}
+
 const outcomeColors = {
   interested: '#22c55e', not_now: '#f5a623',
   not_interested: '#ef4444', booked: '#818cf8', no_answer: '#6b7280'
@@ -652,6 +688,10 @@ function selectOutcome(btn) {
     body: JSON.stringify({ outcome: newVal }),
   }).then(r => r.json()).then(res => {
     if (res.call_outcome) btn.classList.add('active-' + res.call_outcome);
+    if (res.stage_changed && res.new_stage_label) {
+      updateStagePill(res.new_stage, res.new_stage_label);
+      showToast(`Stage → ${res.new_stage_label}`);
+    }
   }).catch(() => showToast('Failed to update', true));
 }
 
@@ -695,6 +735,10 @@ function saveLog() {
     history.insertAdjacentHTML('afterbegin', html);
     document.getElementById('logNote').value = '';
     document.getElementById('logOutcome').value = '';
+    if (entry.stage_changed && entry.new_stage_label) {
+      updateStagePill(entry.new_stage, entry.new_stage_label);
+      showToast(`Stage → ${entry.new_stage_label}`);
+    }
     const btn = document.getElementById('saveLogBtn');
     btn.textContent = '✓ Logged';
     btn.classList.add('success');

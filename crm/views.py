@@ -1065,6 +1065,48 @@ def create_record(request, model_type, workspace, membership):
     return JsonResponse({'error': 'Invalid model type'}, status=400)
 
 
+_STAGE_ORDER = ['cold_lead', 'warm_lead', 'discovery_call', 'proposal', 'negotiation', 'closed_won']
+_STAGE_LABEL = {k: l for k, l, _ in STAGE_META}
+
+
+def _advance_stage(current_stage, tp_type, outcome):
+    """Return the new stage key, or None if it should not change."""
+    def rank(s):
+        try:
+            return _STAGE_ORDER.index(s)
+        except ValueError:
+            return -1
+
+    def advance_to(target):
+        return target if rank(target) > rank(current_stage) else None
+
+    if current_stage == 'closed_won':
+        return None
+
+    if outcome == 'not_interested':
+        return 'closed_lost'
+
+    if outcome == 'booked':
+        return advance_to('discovery_call')
+
+    if tp_type == 'meeting':
+        if current_stage in ('cold_lead', 'warm_lead'):
+            return 'discovery_call'
+        if current_stage == 'discovery_call':
+            return advance_to('proposal')
+        if current_stage == 'proposal':
+            return advance_to('negotiation')
+
+    if tp_type in ('call', 'voicemail', 'text'):
+        if outcome == 'interested':
+            if current_stage == 'cold_lead':
+                return 'warm_lead'
+            return advance_to('discovery_call')
+        return advance_to('warm_lead')
+
+    return None
+
+
 @_api_workspace_required
 @require_POST
 def add_touchpoint(request, model_type, pk, workspace, membership):
@@ -1089,20 +1131,37 @@ def add_touchpoint(request, model_type, pk, workspace, membership):
         logged_by       = data.get('logged_by', ''),
     )
 
+    update_fields = []
     if not obj.heat_override:
         cfg = HeatSettings.get_for_workspace(workspace)
         obj.heat = auto_heat(obj, cfg)
-        obj.save(update_fields=['heat'])
+        update_fields.append('heat')
+
+    stage_changed = False
+    new_stage = obj.stage if hasattr(obj, 'stage') else None
+    if model_type == 'contact':
+        next_stage = _advance_stage(obj.stage, tp.touchpoint_type, tp.outcome)
+        if next_stage:
+            obj.stage  = next_stage
+            new_stage  = next_stage
+            stage_changed = True
+            update_fields.append('stage')
+
+    if update_fields:
+        obj.save(update_fields=update_fields)
 
     return JsonResponse({
-        'id':         tp.id,
-        'type':       tp.touchpoint_type,
-        'type_label': tp.get_touchpoint_type_display(),
-        'date':       str(tp.date),
-        'summary':    tp.summary,
-        'notes':      tp.notes,
-        'outcome':    tp.outcome,
-        'logged_by':  tp.logged_by,
+        'id':            tp.id,
+        'type':          tp.touchpoint_type,
+        'type_label':    tp.get_touchpoint_type_display(),
+        'date':          str(tp.date),
+        'summary':       tp.summary,
+        'notes':         tp.notes,
+        'outcome':       tp.outcome,
+        'logged_by':     tp.logged_by,
+        'stage_changed': stage_changed,
+        'new_stage':     new_stage,
+        'new_stage_label': _STAGE_LABEL.get(new_stage, '') if stage_changed else '',
     })
 
 
@@ -2868,8 +2927,23 @@ def contact_set_outcome(request, pk, workspace, membership):
     if outcome and outcome not in valid:
         return JsonResponse({'error': 'Invalid outcome'}, status=400)
     contact.call_outcome = outcome
-    contact.save(update_fields=['call_outcome'])
-    return JsonResponse({'ok': True, 'call_outcome': contact.call_outcome})
+    update_fields = ['call_outcome']
+
+    stage_changed = False
+    next_stage = _advance_stage(contact.stage, 'call', outcome) if outcome else None
+    if next_stage:
+        contact.stage = next_stage
+        stage_changed = True
+        update_fields.append('stage')
+
+    contact.save(update_fields=update_fields)
+    return JsonResponse({
+        'ok':            True,
+        'call_outcome':  contact.call_outcome,
+        'stage_changed': stage_changed,
+        'new_stage':     contact.stage,
+        'new_stage_label': _STAGE_LABEL.get(contact.stage, '') if stage_changed else '',
+    })
 
 
 @_api_workspace_required
