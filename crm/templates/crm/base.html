@@ -164,7 +164,10 @@
 
       function applyFilters() {
         Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-          const ok = (!textQuery || row.textContent.toLowerCase().includes(textQuery)) &&
+          const searchText = Array.from(row.cells)
+            .filter(cell => !cell.dataset.noSearch)
+            .map(cell => cell.textContent).join(' ').toLowerCase();
+          const ok = (!textQuery || searchText.includes(textQuery)) &&
             Object.entries(dropVals).every(([c, v]) => !v || row.cells[+c]?.textContent.trim() === v);
           row.style.display = ok ? '' : 'none';
         });

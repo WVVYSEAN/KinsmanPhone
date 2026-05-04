@@ -147,7 +147,7 @@ class HeatSettings(models.Model):
                           help_text='Domain used for reply-to addresses, e.g. yourdomain.com')
 
     # Cold outreach email template
-    outreach_enabled = models.BooleanField(default=True)
+    outreach_enabled = models.BooleanField(default=False)
     outreach_subject = models.CharField(max_length=500, blank=True)
     outreach_body    = models.TextField(blank=True)
 

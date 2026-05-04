@@ -740,7 +740,9 @@ def dashboard(request, workspace, membership):
         'source_choices':       Contact._meta.get_field('source').choices,
         'stage_choices':        Contact._meta.get_field('stage').choices,
     }
-    return render(request, 'crm/dashboard.html', context)
+    response = render(request, 'crm/dashboard.html', context)
+    response['Cache-Control'] = 'no-store'
+    return response
 
 
 # ── Stage expanded list ────────────────────────────────────────────────────────
@@ -1137,9 +1139,14 @@ def add_touchpoint(request, model_type, pk, workspace, membership):
         obj.heat = auto_heat(obj, cfg)
         update_fields.append('heat')
 
-    stage_changed = False
+    called_updated = False
+    stage_changed  = False
     new_stage = obj.stage if hasattr(obj, 'stage') else None
     if model_type == 'contact':
+        if tp.touchpoint_type == 'call' and not obj.called:
+            obj.called = True
+            called_updated = True
+            update_fields.append('called')
         next_stage = _advance_stage(obj.stage, tp.touchpoint_type, tp.outcome)
         if next_stage:
             obj.stage  = next_stage
@@ -1159,6 +1166,7 @@ def add_touchpoint(request, model_type, pk, workspace, membership):
         'notes':         tp.notes,
         'outcome':       tp.outcome,
         'logged_by':     tp.logged_by,
+        'called_updated': called_updated,
         'stage_changed': stage_changed,
         'new_stage':     new_stage,
         'new_stage_label': _STAGE_LABEL.get(new_stage, '') if stage_changed else '',
@@ -2929,6 +2937,12 @@ def contact_set_outcome(request, pk, workspace, membership):
     contact.call_outcome = outcome
     update_fields = ['call_outcome']
 
+    called_updated = False
+    if outcome and not contact.called:
+        contact.called = True
+        called_updated = True
+        update_fields.append('called')
+
     stage_changed = False
     next_stage = _advance_stage(contact.stage, 'call', outcome) if outcome else None
     if next_stage:
@@ -2938,10 +2952,11 @@ def contact_set_outcome(request, pk, workspace, membership):
 
     contact.save(update_fields=update_fields)
     return JsonResponse({
-        'ok':            True,
-        'call_outcome':  contact.call_outcome,
-        'stage_changed': stage_changed,
-        'new_stage':     contact.stage,
+        'ok':             True,
+        'call_outcome':   contact.call_outcome,
+        'called_updated': called_updated,
+        'stage_changed':  stage_changed,
+        'new_stage':      contact.stage,
         'new_stage_label': _STAGE_LABEL.get(contact.stage, '') if stage_changed else '',
     })
 

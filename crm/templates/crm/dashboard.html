@@ -232,24 +232,23 @@
     </div>
 
     {% for stage in contact_stages %}
-    <section class="mb-6">
+    <section class="mb-6" data-stage-section="{{ stage.key }}">
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
           <span class="{{ stage.badge }}">{{ stage.label }}</span>
-          <span class="text-sm" style="color:var(--text-tertiary)">{{ stage.count }} contact{{ stage.count|pluralize }}</span>
+          <span class="text-sm" data-stage-count="{{ stage.key }}" style="color:var(--text-tertiary)">{{ stage.count }} contact{{ stage.count|pluralize }}</span>
         </div>
         <div class="flex items-center gap-2">
-          {% if stage.count > 0 %}
-          <a href="/contacts/{{ stage.key }}/" style="font-size:.75rem;font-weight:600;color:var(--cyan);opacity:.8;transition:opacity 150ms;text-decoration:none"
+          <a href="/contacts/{{ stage.key }}/" data-stage-viewall="{{ stage.key }}"
+             style="font-size:.75rem;font-weight:600;color:var(--cyan);opacity:.8;transition:opacity 150ms;text-decoration:none;{% if not stage.count %}display:none{% endif %}"
              onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.8'">View all {{ stage.count }} &rarr;</a>
-          {% endif %}
           <button onclick="openAddModal('contact','{{ stage.key }}')" class="wvvy-btn-add">+ Add</button>
         </div>
       </div>
       <div class="wvvy-card overflow-hidden">
-        {% if stage.records %}
-        <div id="fb-c-{{ stage.key }}" class="px-4 py-2.5 flex flex-wrap gap-3 items-center min-h-[48px]" style="border-bottom:1px solid var(--border-subtle)"></div>
-        <div class="overflow-x-auto">
+        <div id="fb-c-{{ stage.key }}" class="px-4 py-2.5 flex flex-wrap gap-3 items-center min-h-[48px]"
+             style="border-bottom:1px solid var(--border-subtle);{% if not stage.records %}display:none{% endif %}"></div>
+        <div id="table-wrap-c-{{ stage.key }}" class="overflow-x-auto"{% if not stage.records %} style="display:none"{% endif %}>
           <table id="tbl-c-{{ stage.key }}" class="w-full text-sm whitespace-nowrap"
                  data-init-table data-filter-bar="fb-c-{{ stage.key }}"
                  data-dropdown-cols="1,7" data-dropdown-labels="Heat,Industry">
@@ -263,11 +262,12 @@
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Call Notes</th>
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Location</th>
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Industry</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Move to</th>
               </tr>
             </thead>
-            <tbody class="divide-y" style="border-color:var(--border-subtle)">
+            <tbody id="tbody-c-{{ stage.key }}" class="divide-y" style="border-color:var(--border-subtle)">
               {% for c in stage.records %}
-              <tr class="wvvy-tr-hover transition-colors">
+              <tr class="wvvy-tr-hover transition-colors" data-contact-pk="{{ c.pk }}">
                 <td class="px-4 py-2.5 font-medium">
                   <a href="/contact/{{ c.id }}/"
                      style="color:var(--text-primary);font-weight:500;text-decoration:none"
@@ -299,18 +299,22 @@
                 </td>
                 <td class="px-4 py-2.5" style="color:var(--text-tertiary)">{{ c.location|default:"—" }}</td>
                 <td class="px-4 py-2.5" style="color:var(--text-tertiary)">{{ c.industry|default:"—" }}</td>
+                <td class="px-4 py-2.5" data-no-search>
+                  <select onchange="changeContactStage({{ c.pk }}, this)"
+                          style="font-size:.6875rem;font-weight:600;background:transparent;border:1px solid var(--border-subtle);border-radius:6px;color:var(--text-tertiary);cursor:pointer;outline:none;padding:3px 6px;max-width:130px">
+                    {% for val, label in stage_choices %}<option value="{{ val }}"{% if c.stage == val %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                  </select>
+                </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        {% else %}
-        <div class="px-6 py-6 text-center">
+        <div id="empty-c-{{ stage.key }}" class="px-6 py-6 text-center"{% if stage.records %} style="display:none"{% endif %}>
           <p class="text-sm" style="color:var(--text-tertiary)">No {{ stage.label|lower }} contacts.
             <button onclick="openAddModal('contact','{{ stage.key }}')" style="color:var(--cyan);text-decoration:underline">Add one</button>.
           </p>
         </div>
-        {% endif %}
       </div>
     </section>
     {% endfor %}
@@ -832,5 +836,86 @@ function openCallNotes(pk, el) {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddModal(); });
+
+// ── Stage changer ─────────────────────────────────────────────────────────────
+function changeContactStage(pk, selectEl) {
+  const newStage  = selectEl.value;
+  const row       = document.querySelector(`[data-contact-pk="${pk}"]`);
+  if (!row) return;
+  const fromTbody = row.closest('tbody');
+  if (!fromTbody) return;
+  const fromStage = fromTbody.id.replace('tbody-c-', '');
+  if (fromStage === newStage) return;
+
+  fetch(`/api/update/contact/${pk}/`, {
+    method:  'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+    body:    JSON.stringify({ stage: newStage }),
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (!res.ok) { selectEl.value = fromStage; showToast('Failed to move', true); return; }
+
+    // Animate row out of source section
+    row.style.transition = 'opacity .18s ease, transform .18s ease';
+    row.style.opacity    = '0';
+    row.style.transform  = 'translateX(16px)';
+
+    setTimeout(() => {
+      const toTbody = document.getElementById('tbody-c-' + newStage);
+      if (toTbody) {
+        // Keep select value correct in the new section
+        const sel = row.querySelector('select');
+        if (sel) sel.value = newStage;
+        toTbody.appendChild(row);
+
+        const toWrap  = document.getElementById('table-wrap-c-' + newStage);
+        const toEmpty = document.getElementById('empty-c-'      + newStage);
+        const toFb    = document.getElementById('fb-c-'         + newStage);
+        if (toWrap)  toWrap.style.display  = '';
+        if (toEmpty) toEmpty.style.display = 'none';
+        if (toFb)    toFb.style.display    = '';
+      }
+
+      // Hide source section if now empty
+      if (!fromTbody.querySelector('tr')) {
+        const fromWrap  = document.getElementById('table-wrap-c-' + fromStage);
+        const fromEmpty = document.getElementById('empty-c-'      + fromStage);
+        const fromFb    = document.getElementById('fb-c-'         + fromStage);
+        if (fromWrap)  fromWrap.style.display  = 'none';
+        if (fromEmpty) fromEmpty.style.display = '';
+        if (fromFb)    fromFb.style.display    = 'none';
+      }
+
+      _updateStageCount(fromStage, -1);
+      _updateStageCount(newStage,  +1);
+
+      // Animate row in to target section
+      row.style.transition = '';
+      row.style.opacity    = '0';
+      row.style.transform  = 'translateX(-16px)';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        row.style.transition = 'opacity .22s ease, transform .22s ease';
+        row.style.opacity    = '1';
+        row.style.transform  = 'translateX(0)';
+        setTimeout(() => { row.style.transition = ''; row.style.transform = ''; }, 230);
+      }));
+
+      showToast('Moved to ' + res.stage_label);
+    }, 190);
+  })
+  .catch(() => { selectEl.value = fromStage; showToast('Failed to move', true); });
+}
+
+function _updateStageCount(stageKey, delta) {
+  const el = document.querySelector(`[data-stage-count="${stageKey}"]`);
+  if (!el) return;
+  const n = (parseInt(el.textContent, 10) || 0) + delta;
+  el.textContent = `${n} contact${n !== 1 ? 's' : ''}`;
+  const link = document.querySelector(`[data-stage-viewall="${stageKey}"]`);
+  if (!link) return;
+  link.style.display = n <= 0 ? 'none' : '';
+  if (n > 0) link.innerHTML = `View all ${n} &rarr;`;
+}
 </script>
 {% endblock %}
