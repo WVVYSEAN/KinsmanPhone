@@ -263,6 +263,9 @@
             <th class="px-4 py-2.5 sort-th wvvy-section-label {% if primary_sort_field == 'company' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('company')">
               Company {% if primary_sort_field == 'company' %}{% if primary_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
             </th>
+            <th class="px-4 py-2.5 sort-th wvvy-section-label {% if primary_sort_field == 'industry' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('industry')">
+              Industry {% if primary_sort_field == 'industry' %}{% if primary_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
+            </th>
             <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Phone</th>
             <th class="px-4 py-2.5 sort-th wvvy-section-label {% if primary_sort_field == 'called' %}active-sort{% endif %}" style="font-size:0.6875rem" onclick="setSort('called')">
               Called {% if primary_sort_field == 'called' %}{% if primary_sort_dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}<span style="opacity:0.35">↕</span>{% endif %}
@@ -294,6 +297,7 @@
               <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ c.heat_badge }}">{{ c.get_heat_display }}</span>
             </td>
             <td class="px-4 py-2.5" style="color:var(--text-secondary)">{{ c.company|default:"—" }}</td>
+            <td class="px-4 py-2.5" style="color:var(--text-tertiary)">{{ c.industry|default:"—" }}</td>
             <td class="px-4 py-2.5">
               {% if c.phone %}
               <a href="tel:{{ c.phone }}" style="color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:0.8rem;text-decoration:none;opacity:0.85"
@@ -329,7 +333,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="px-6 py-14 text-center">
+            <td colspan="10" class="px-6 py-14 text-center">
               <p class="text-base font-semibold mb-1" style="color:var(--text-secondary)">No leads match your filters</p>
               <p class="text-sm mb-4" style="color:var(--text-tertiary)">Try adjusting your search or filters.</p>
               <a href="/contacts/cold_lead/" class="wvvy-btn-primary" style="font-size:0.8125rem">Clear Filters</a>
