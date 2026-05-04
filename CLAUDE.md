@@ -137,6 +137,13 @@ The cold lead list lives at `/contacts/cold_lead/` and is served by `cold_lead_l
 **API endpoints:**
 - `POST /api/saved-filters/save/` — upsert by name; body `{name, emoji, state}`. Pass `update_id` (int pk) instead of `name` to update an existing filter in-place (used by "Update" button)
 - `POST /api/saved-filters/<pk>/delete/` — delete owned filter
+- `POST /api/ai-contact-search/` — AI natural language search; body `{query: string}`; returns `{explanation, matches:[{pk,score}], total}` scored across all cold_lead contacts in the workspace
+
+**AI Search** (`POST /api/ai-contact-search/`):
+- Sends the natural language query to Claude Haiku (`claude-haiku-4-5-20251001`) which extracts structured criteria: `industry_terms`, `location_terms`, `company_terms`, `role_terms`, `size_terms`, `org_type_terms`, `min_founded_year`, `max_founded_year`, and `explanation`
+- Scores all workspace cold-lead contacts in Python (no extra DB queries per contact); industry hits weight ×3, location ×2, company ×2, role/size/org_type ×1; founded year in-range gives +2 bonus, out-of-range −3 penalty
+- Requires `ANTHROPIC_API_KEY` environment variable; returns 400 if not set
+- Client-side: table rows are reordered by score (non-matches hidden), matched rows get a purple % relevance badge in the Name column, a banner shows the AI explanation + match count. `clearAiSearch()` restores original DOM order. `_origRowOrder` array stores the original `<tr>` sequence on first AI run; `_aiMode` boolean guards subsequent clears.
 
 **Filter helper `_build_filter_q(field, op, val)`** in `views.py` returns a `Q` object for one row. Supported fields: `name`, `email`, `company`, `role`, `location`, `industry`, `heat`, `called`, `call_outcome`, `phone`, `created_at`, `updated_at`.
 

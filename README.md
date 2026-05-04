@@ -6,7 +6,7 @@ AI-powered outbound CRM for phone-first lead outreach and personalised cold emai
 
 - **Lead generation** — search LinkedIn via Apify and import contacts directly into the CRM (phone number required at import)
 - **Phone-first workflow** — each lead has a dedicated detail page with a one-tap `tel:` call link, called/outcome tracking, and a contact log
-- **Cold lead list** — server-side search, multi-field filter builder, quick-filter chips, multi-level sort panel, saved filter pills with emoji, and relative time display
+- **Cold lead list** — server-side search, multi-field filter builder, quick-filter chips, multi-level sort panel, saved filter pills with emoji, relative time display, and **AI-powered natural language search** (Claude Haiku ranks leads by relevance with on-page score badges)
 - **Automated outreach** — send personalised email sequences to imported leads via Resend
 - **AI email replies** — inbound replies are handled by an AI pipeline that drafts or sends responses
 - **Multi-workspace** — each team gets an isolated workspace with its own contacts, settings, and API keys
@@ -56,6 +56,7 @@ python manage.py runserver
 | `DATABASE_URL` | Yes (prod) | PostgreSQL connection URL — injected automatically when a Railway Postgres service is linked |
 | `APIFY_API_TOKEN` | Yes | Apify API token for LinkedIn scraping |
 | `APIFY_WEBHOOK_SECRET` | Yes | Secret for validating Apify webhook payloads |
+| `ANTHROPIC_API_KEY` | No | Anthropic API key — required for AI-powered natural language search on the cold lead list |
 | `REDIS_URL` | No | Redis connection URL (only needed if Celery worker is running) |
 
 Per-workspace settings (Resend API key, outreach templates, AI config) are stored in the database via the Settings page.
@@ -83,6 +84,7 @@ web: python manage.py migrate --noinput && python manage.py collectstatic --noin
 - Multi-level sort panel (up to 5 levels) with field + direction dropdowns; column-header clicks for quick single-level sort
 - Relative time display for Added / Last Edited date columns ("Today", "2 days ago") with full timestamp on hover
 - Saved filter sets per user (up to 25), persisted to the `SavedFilter` model; "Update [name]" / "Save as New…" workflow when a pill is active
+- **AI Search** — natural language input powered by Claude Haiku; extracts industry, location, role, company, and date criteria; scores and re-ranks all workspace leads without a page reload; matched rows show a purple relevance % badge
 
 **Contact detail page** — `/contact/<pk>/` shows a full lead profile with a sticky call bar, `tel:` link, called/outcome toggles, contact log, and financials tab.
 

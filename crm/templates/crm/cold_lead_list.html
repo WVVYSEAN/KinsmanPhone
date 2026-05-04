@@ -102,6 +102,26 @@
 
   /* Relative time tooltip */
   .rel-time { cursor: help; }
+
+  /* AI search */
+  .ai-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.3rem 0.75rem; border-radius: 8px; font-size: 0.775rem; font-weight: 600;
+    border: 1.5px solid rgba(139,92,246,0.4); background: rgba(139,92,246,0.08);
+    color: #a78bfa; cursor: pointer; transition: all 140ms;
+  }
+  .ai-btn:hover, .ai-btn.active { border-color: #a78bfa; background: rgba(139,92,246,0.18); }
+  .ai-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(139,92,246,0.18); color: #c4b5fd; border-radius: 99px;
+    font-size: 0.6rem; font-weight: 800; padding: 0.08rem 0.38rem;
+    border: 1px solid rgba(139,92,246,0.35); margin-left: 0.3rem; vertical-align: middle;
+  }
+  .ai-banner {
+    padding: 0.65rem 1rem; border-radius: 10px;
+    background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.22);
+    color: #c4b5fd; font-size: 0.8rem; display: flex; align-items: flex-start; gap: 0.6rem;
+  }
 </style>
 
 <main class="max-w-7xl mx-auto px-8 py-6 space-y-3">
@@ -113,6 +133,14 @@
       <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">{{ total }} total in pipeline</p>
     </div>
     <div class="flex items-center gap-2" id="toolbar-btns">
+      <!-- AI Search button -->
+      <button type="button" id="ai-search-btn" onclick="toggleAiPanel()" class="ai-btn">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+        </svg>
+        AI Search
+      </button>
+
       <!-- Sort button -->
       <button type="button" id="sort-toggle-btn" onclick="toggleSortPanel()" class="sort-btn">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,6 +184,50 @@
 
     <!-- Add pill button -->
     <button type="button" class="cl-pill-add" onclick="openSaveModal()" title="Save current view as a filter pill" id="pill-add-btn" style="display:none">+</button>
+  </div>
+
+  <!-- ── AI Search panel ── -->
+  <div id="ai-panel" style="display:none">
+    <div class="wvvy-card px-4 py-4 space-y-3" style="border-color:rgba(139,92,246,0.3)">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 flex-shrink-0" style="color:#a78bfa" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+        </svg>
+        <span class="text-xs font-semibold" style="color:#a78bfa">AI-powered search</span>
+        <span class="text-xs" style="color:var(--text-tertiary)">— describe what you're looking for in plain English</span>
+      </div>
+      <div class="flex gap-2">
+        <input id="ai-query-input" type="text"
+               placeholder='e.g. "HVAC companies in the southeast" or "Tire shops over 10 years old"'
+               class="wvvy-input flex-1"
+               style="font-size:0.875rem"
+               onkeydown="if(event.key==='Enter'){runAiSearch();}"
+               autocomplete="off">
+        <button type="button" id="ai-run-btn" onclick="runAiSearch()"
+                class="ai-btn" style="white-space:nowrap;flex-shrink:0">
+          <svg id="ai-run-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          Search
+        </button>
+      </div>
+      <p class="text-xs" style="color:var(--text-tertiary)">AI will score and rank leads by relevance. Results overlay the current filtered view.</p>
+    </div>
+  </div>
+
+  <!-- ── AI results banner ── -->
+  <div id="ai-banner" style="display:none" class="ai-banner">
+    <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color:#a78bfa" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+    </svg>
+    <div class="flex-1">
+      <span id="ai-banner-text" style="color:#e9d5ff"></span>
+      <span id="ai-banner-count" class="ml-2" style="color:#a78bfa;font-weight:600"></span>
+    </div>
+    <button type="button" onclick="clearAiSearch()"
+            style="color:#a78bfa;background:none;border:none;cursor:pointer;font-size:0.75rem;font-weight:600;white-space:nowrap;padding:0">
+      Clear AI Search ×
+    </button>
   </div>
 
   <!-- ── Main filter form ── -->
@@ -284,9 +356,9 @@
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y" style="border-color:var(--border-subtle)">
+        <tbody id="leads-tbody" class="divide-y" style="border-color:var(--border-subtle)">
           {% for c in contacts %}
-          <tr class="wvvy-tr-hover transition-colors">
+          <tr class="wvvy-tr-hover transition-colors" data-pk="{{ c.id }}">
             <td class="px-4 py-2.5 font-medium">
               <a href="/contact/{{ c.id }}/"
                  style="color:var(--text-primary);font-weight:500;text-decoration:none"
@@ -1023,7 +1095,137 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Escape closes modals
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeSaveModal(); closeSortPanel(); closeDeleteModal(); }
+  if (e.key === 'Escape') { closeSaveModal(); closeSortPanel(); closeDeleteModal(); closeAiPanel(); }
 });
+
+// ── AI Search ─────────────────────────────────────────────────────────────────
+let _aiMode      = false;
+let _aiScoreMap  = {};   // pk → score
+let _origRowOrder = [];  // original <tr> elements in order
+
+function toggleAiPanel() {
+  const panel = document.getElementById('ai-panel');
+  const btn   = document.getElementById('ai-search-btn');
+  if (panel.style.display === 'none') {
+    panel.style.display = '';
+    btn.classList.add('active');
+    setTimeout(() => document.getElementById('ai-query-input').focus(), 60);
+  } else {
+    closeAiPanel();
+  }
+}
+
+function closeAiPanel() {
+  document.getElementById('ai-panel').style.display = 'none';
+  document.getElementById('ai-search-btn').classList.remove('active');
+}
+
+function runAiSearch() {
+  const query = document.getElementById('ai-query-input').value.trim();
+  if (!query) return;
+
+  const runBtn  = document.getElementById('ai-run-btn');
+  const runIcon = document.getElementById('ai-run-icon');
+  runBtn.disabled = true;
+  runBtn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Searching…';
+
+  fetch('/api/ai-contact-search/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+    body: JSON.stringify({query}),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showToast(data.error, true); return; }
+      _applyAiResults(data);
+    })
+    .catch(() => showToast('AI search failed — please try again', true))
+    .finally(() => {
+      runBtn.disabled = false;
+      runBtn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Search';
+    });
+}
+
+function _applyAiResults(data) {
+  const tbody = document.querySelector('#leads-tbody');
+  if (!tbody) return;
+
+  // Save original order on first AI run
+  if (!_aiMode) {
+    _origRowOrder = Array.from(tbody.querySelectorAll('tr[data-pk]'));
+  }
+  _aiMode = true;
+
+  // Build score map from results
+  _aiScoreMap = {};
+  (data.matches || []).forEach(m => { _aiScoreMap[m.pk] = m.score; });
+
+  const maxScore = data.matches.length ? data.matches[0].score : 1;
+
+  // Sort current rows by score, hide non-matches
+  const allRows = Array.from(tbody.querySelectorAll('tr[data-pk]'));
+  const matched   = allRows.filter(tr => _aiScoreMap[tr.dataset.pk] > 0)
+                           .sort((a, b) => (_aiScoreMap[b.dataset.pk] || 0) - (_aiScoreMap[a.dataset.pk] || 0));
+  const unmatched = allRows.filter(tr => !_aiScoreMap[tr.dataset.pk]);
+
+  // Remove all rows and re-insert in order
+  allRows.forEach(tr => tr.remove());
+
+  matched.forEach(tr => {
+    const score  = _aiScoreMap[tr.dataset.pk] || 0;
+    const pct    = Math.round((score / maxScore) * 100);
+    // Add relevance badge next to the name link
+    const nameCell = tr.querySelector('td:first-child');
+    if (nameCell) {
+      // Remove any existing badge
+      nameCell.querySelector('.ai-badge')?.remove();
+      const badge = document.createElement('span');
+      badge.className = 'ai-badge';
+      badge.textContent = pct + '%';
+      badge.title = `AI relevance score: ${score}`;
+      nameCell.appendChild(badge);
+    }
+    tr.style.display = '';
+    tbody.appendChild(tr);
+  });
+
+  unmatched.forEach(tr => {
+    tr.style.display = 'none';
+    tbody.appendChild(tr);
+  });
+
+  // Show banner
+  const visibleCount = matched.length;
+  const totalMatches = data.total;
+  const offPageExtra = totalMatches - visibleCount;
+
+  document.getElementById('ai-banner-text').textContent = `"${data.explanation}"`;
+  document.getElementById('ai-banner-count').textContent =
+    visibleCount
+      ? `${visibleCount} match${visibleCount !== 1 ? 'es' : ''} on this page`
+        + (offPageExtra > 0 ? ` · ${offPageExtra} more on other pages` : '')
+      : 'No matches on this page' + (offPageExtra > 0 ? ` · ${offPageExtra} matches on other pages` : '');
+  document.getElementById('ai-banner').style.display = '';
+}
+
+function clearAiSearch() {
+  if (!_aiMode) return;
+  _aiMode = false;
+  _aiScoreMap = {};
+
+  const tbody = document.querySelector('#leads-tbody');
+  if (!tbody || !_origRowOrder.length) return;
+
+  // Restore original order and visibility
+  _origRowOrder.forEach(tr => {
+    tr.querySelector('.ai-badge')?.remove();
+    tr.style.display = '';
+    tbody.appendChild(tr);
+  });
+  _origRowOrder = [];
+
+  document.getElementById('ai-banner').style.display = 'none';
+  document.getElementById('ai-query-input').value = '';
+}
 </script>
 {% endblock %}

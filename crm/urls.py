@@ -92,6 +92,7 @@ urlpatterns = [
     path('contacts/cold_lead/',                        views.cold_lead_list,                name='cold_lead_list'),
     path('api/saved-filters/save/',                    views.saved_filter_save,             name='saved_filter_save'),
     path('api/saved-filters/<int:pk>/delete/',         views.saved_filter_delete,           name='saved_filter_delete'),
+    path('api/ai-contact-search/',                     views.ai_contact_search,             name='ai_contact_search'),
 
     # Wildcard — must stay last
     path('<str:model_type>/<str:stage>/', views.stage_list, name='stage_list'),

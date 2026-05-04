@@ -3272,3 +3272,112 @@ def saved_filter_delete(request, pk, workspace, membership):
     obj = get_object_or_404(SavedFilter, pk=pk, workspace=workspace, user=request.user)
     obj.delete()
     return JsonResponse({'ok': True})
+
+
+@_api_workspace_required
+@require_POST
+def ai_contact_search(request, workspace, membership):
+    import os as _os, anthropic as _anthropic
+
+    body  = json.loads(request.body)
+    query = (body.get('query') or '').strip()
+    if not query:
+        return JsonResponse({'error': 'Query is required'}, status=400)
+
+    api_key = _os.environ.get('ANTHROPIC_API_KEY', '')
+    if not api_key:
+        return JsonResponse({'error': 'AI not configured'}, status=400)
+
+    # ── Step 1: extract structured criteria via Haiku ─────────────────────────
+    from datetime import date as _date
+    current_year = _date.today().year
+
+    system_prompt = (
+        f"You are a CRM search assistant. Today is {current_year}. "
+        "Extract structured search criteria from a natural language query about business contacts/companies.\n\n"
+        "Return ONLY valid JSON (no markdown) with these fields (omit or use [] / null if not applicable):\n"
+        "{\n"
+        '  "industry_terms": [],       // industries or business types (include synonyms)\n'
+        '  "location_terms": [],       // locations, regions, states, cities (expand abbreviations)\n'
+        '  "company_terms": [],        // company name keywords\n'
+        '  "role_terms": [],           // job titles or roles\n'
+        '  "size_terms": [],           // company size descriptors\n'
+        '  "org_type_terms": [],       // org type (nonprofit, LLC, franchise, etc)\n'
+        '  "min_founded_year": null,   // integer or null\n'
+        '  "max_founded_year": null,   // integer or null\n'
+        '  "explanation": ""           // plain-English summary of the search\n'
+        "}\n\n"
+        "Examples:\n"
+        "- \"HVAC companies in the southeast\" → industry_terms:[\"HVAC\",\"heating\",\"cooling\",\"air conditioning\",\"HVAC/R\"], "
+        "location_terms:[\"southeast\",\"Georgia\",\"Florida\",\"Alabama\",\"South Carolina\",\"Tennessee\",\"Mississippi\",\"Louisiana\",\"North Carolina\"]\n"
+        f"- \"Tire shops over 10 years old\" → industry_terms:[\"tire\",\"auto repair\",\"automotive\"], "
+        f"max_founded_year:{current_year - 10}, explanation:\"Tire shops founded more than 10 years ago\"\n"
+        "- \"CFOs at manufacturing companies\" → role_terms:[\"CFO\",\"Chief Financial Officer\"], industry_terms:[\"manufacturing\",\"production\",\"industrial\"]"
+    )
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        resp   = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{'role': 'user', 'content': query}],
+        )
+        raw = resp.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith('```'):
+            raw = '\n'.join(raw.split('\n')[1:]).rstrip('`').strip()
+        criteria = json.loads(raw)
+    except Exception as exc:
+        logger.error('AI contact search extraction failed: %s', exc)
+        return JsonResponse({'error': 'AI search failed — please try again'}, status=500)
+
+    # ── Step 2: score all cold_lead contacts ─────────────────────────────────
+    industry_terms = [t.lower() for t in (criteria.get('industry_terms')  or [])]
+    location_terms = [t.lower() for t in (criteria.get('location_terms')  or [])]
+    company_terms  = [t.lower() for t in (criteria.get('company_terms')   or [])]
+    role_terms     = [t.lower() for t in (criteria.get('role_terms')      or [])]
+    size_terms     = [t.lower() for t in (criteria.get('size_terms')      or [])]
+    org_type_terms = [t.lower() for t in (criteria.get('org_type_terms')  or [])]
+    min_yr         = criteria.get('min_founded_year')
+    max_yr         = criteria.get('max_founded_year')
+
+    def _hits(field_val, terms):
+        if not field_val or not terms:
+            return 0
+        fv = field_val.lower()
+        return sum(1 for t in terms if t in fv)
+
+    contacts_qs = Contact.objects.filter(
+        workspace=workspace, stage='cold_lead',
+    ).values('pk', 'industry', 'location', 'company', 'role',
+             'org_type', 'org_founded_year', 'company_size')
+
+    matches = []
+    for c in contacts_qs:
+        score  = 0
+        score += _hits(c['industry'],    industry_terms) * 3
+        score += _hits(c['location'],    location_terms) * 2
+        score += _hits(c['company'],     company_terms)  * 2
+        score += _hits(c['role'],        role_terms)     * 1
+        score += _hits(c['company_size'],size_terms)     * 1
+        score += _hits(c['org_type'],    org_type_terms) * 1
+
+        yr_str = (c['org_founded_year'] or '').strip()
+        if yr_str.isdigit():
+            yr = int(yr_str)
+            if (min_yr and yr < min_yr) or (max_yr and yr > max_yr):
+                score -= 3
+            elif min_yr or max_yr:
+                score += 2
+
+        if score > 0:
+            matches.append({'pk': c['pk'], 'score': score})
+
+    matches.sort(key=lambda x: x['score'], reverse=True)
+
+    return JsonResponse({
+        'explanation': criteria.get('explanation') or query,
+        'matches':     matches,
+        'total':       len(matches),
+    })
