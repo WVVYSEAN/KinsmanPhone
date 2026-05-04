@@ -290,7 +290,7 @@ class Contact(models.Model):
     # Drip campaign tracking
     drip_followups_sent   = models.IntegerField(default=0, help_text='Number of drip emails sent to this contact')
     drip_sequence_stopped = models.BooleanField(default=False, help_text='Drip sequence permanently stopped (replied, unsubscribed, etc.)')
-    drip_paused           = models.BooleanField(default=False, help_text='Drip sequence temporarily paused')
+    drip_paused           = models.BooleanField(default=True, help_text='Drip sequence temporarily paused')
     # Phone-first workflow fields
     called               = models.BooleanField(default=False)
     call_outcome         = models.CharField(max_length=20, blank=True, default='', choices=CALL_OUTCOME_CHOICES)

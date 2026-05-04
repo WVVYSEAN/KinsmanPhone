@@ -55,6 +55,38 @@ def _log_activity(contact, summary, notes=''):
 
 # ── AI generation ──────────────────────────────────────────────────────────────
 
+def _build_contact_history_block(contact):
+    """Return a formatted string of notes + recent touchpoints, or '' if nothing to show."""
+    from .models import TouchPoint
+    from django.contrib.contenttypes.models import ContentType
+
+    parts = []
+
+    if contact.notes and contact.notes.strip():
+        parts.append(f'Notes: {contact.notes.strip()}')
+
+    ct = ContentType.objects.get_for_model(contact.__class__)
+    touchpoints = (
+        TouchPoint.objects
+        .filter(content_type=ct, object_id=contact.pk)
+        .order_by('-date', '-created_at')[:8]
+    )
+    if touchpoints:
+        tp_lines = []
+        for tp in touchpoints:
+            label = tp.get_touchpoint_type_display()
+            date_str = str(tp.date) if tp.date else '?'
+            outcome_str = f' | Outcome: {tp.outcome}' if tp.outcome else ''
+            summary_str = f' | "{tp.summary.strip()}"' if tp.summary and tp.summary.strip() else ''
+            notes_str   = f' — {tp.notes.strip()}' if tp.notes and tp.notes.strip() else ''
+            tp_lines.append(f'- {date_str} | {label}{outcome_str}{summary_str}{notes_str}')
+        parts.append('Recent interactions:\n' + '\n'.join(tp_lines))
+
+    if not parts:
+        return ''
+    return '\n\n## Contact History\n' + '\n\n'.join(parts)
+
+
 def _build_prompts(contact, sequence_number, cfg, workspace, sender_name, sender_first,
                    booking_url, few_shot_examples):
     """
@@ -73,6 +105,8 @@ def _build_prompts(contact, sequence_number, cfg, workspace, sender_name, sender
     if contact.location:
         context_parts.append(f'Location: {contact.location}')
     context_block = '\n'.join(context_parts) if context_parts else 'No additional context.'
+
+    contact_history_block = _build_contact_history_block(contact)
 
     # Initial email template as the style anchor
     initial_email_block = ''
@@ -117,7 +151,8 @@ def _build_prompts(contact, sequence_number, cfg, workspace, sender_name, sender
         f"- Do not start with 'I'\n\n"
         f"## Recipient\n"
         f"Name: {contact.name}\n"
-        f"{context_block}\n\n"
+        f"{context_block}"
+        f"{contact_history_block}\n\n"
         f"## Email Details\n"
         f"This is follow-up email #{sequence_number}.\n"
         f"{f'Calendar link: {booking_url}' if booking_url else 'No calendar link configured — ask them to share their availability instead.'}\n"
