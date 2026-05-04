@@ -95,6 +95,13 @@ _db_url = (
 )
 if _db_url:
     DATABASES = {'default': dj_database_url.parse(_db_url, conn_max_age=600)}
+elif not DEBUG:
+    raise RuntimeError(
+        'No database URL is configured. In production you MUST set DATABASE_URL '
+        '(or POSTGRES_URL / DATABASE_PRIVATE_URL / DATABASE_PUBLIC_URL) to a '
+        'PostgreSQL connection string. Railway: add a Postgres service to your '
+        'project — it will inject DATABASE_URL automatically.'
+    )
 else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
