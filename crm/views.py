@@ -1009,6 +1009,7 @@ def create_record(request, model_type, workspace, membership):
             workspace          = workspace,
             name               = data.get('name', '').strip(),
             email              = data.get('email', '').strip(),
+            phone              = data.get('phone', '').strip(),
             company            = data.get('company', '').strip(),
             role               = data.get('role', '').strip(),
             linkedin           = data.get('linkedin', '').strip(),
