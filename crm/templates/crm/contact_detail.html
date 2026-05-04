@@ -435,7 +435,10 @@
           <div class="field-list">
             <div class="field-row"><span class="field-label">Company</span><span class="field-value">{{ contact.company|default:"—" }}</span></div>
             <div class="field-row"><span class="field-label">Industry</span><span class="field-value">{{ contact.industry|default:"—" }}</span></div>
-            <div class="field-row"><span class="field-label">Company Size</span><span class="field-value">{{ contact.company_size|default:"—" }}</span></div>
+            <div class="field-row"><span class="field-label">Type</span><span class="field-value">{{ contact.org_type|default:"—" }}</span></div>
+            <div class="field-row"><span class="field-label">Size</span><span class="field-value">{{ contact.company_size|default:"—" }}</span></div>
+            <div class="field-row"><span class="field-label">Revenue</span><span class="field-value">{{ contact.org_revenue|default:"—" }}</span></div>
+            <div class="field-row"><span class="field-label">Founded</span><span class="field-value">{{ contact.org_founded_year|default:"—" }}</span></div>
             <div class="field-row">
               <span class="field-label">Website</span>
               {% if contact.company_domain %}<a href="https://{{ contact.company_domain }}" target="_blank" rel="noreferrer" class="field-link">{{ contact.company_domain }}</a>{% else %}<span class="field-value">—</span>{% endif %}
@@ -444,6 +447,7 @@
               <span class="field-label">LinkedIn</span>
               {% if contact.linkedin %}<a href="{{ contact.linkedin }}" target="_blank" rel="noreferrer" class="field-link">View profile</a>{% else %}<span class="field-value">—</span>{% endif %}
             </div>
+            <div class="field-row"><span class="field-label">Connections</span><span class="field-value">{{ contact.connections|default:"—" }}</span></div>
           </div>
         </div>
 

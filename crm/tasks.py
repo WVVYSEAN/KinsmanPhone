@@ -46,18 +46,46 @@ def _parse_item_to_contact_kwargs(item, workspace):
     if not isinstance(_phone, str):
         _phone = ''
 
+    # Company domain — strip protocol/path to get bare domain
+    _website = (item.get('organizationWebsite') or item.get('companyWebsite') or '').strip()
+    if _website:
+        import re as _re
+        _website = _re.sub(r'^https?://', '', _website).rstrip('/').split('/')[0]
+
+    # Connection count may be a number or formatted string like "500+"
+    _connections = item.get('connections') or item.get('connectionCount') or ''
+    if isinstance(_connections, int):
+        _connections = str(_connections)
+
+    # Pre-populate notes with LinkedIn bio + company description
+    _notes_parts = []
+    _summary = (item.get('summary') or item.get('headline') or item.get('about') or '').strip()
+    _org_desc = (item.get('organizationDescription') or item.get('companyDescription') or '').strip()
+    if _summary:
+        _notes_parts.append(f'**About {(first or name).split()[0]}:** {_summary}')
+    if _org_desc:
+        _org_name = company or 'the company'
+        _notes_parts.append(f'**About {_org_name}:** {_org_desc}')
+
     return dict(
-        workspace = workspace,
-        name      = name[:200],
-        email     = email[:254],
-        phone     = _phone.strip()[:50],
-        role      = (item.get('position') or item.get('title') or '').strip()[:200],
-        company   = company[:200],
-        linkedin  = (item.get('linkedinUrl') or '').strip()[:200],
-        location  = location[:200],
-        industry  = (item.get('organizationIndustry') or item.get('industry') or '').strip()[:200],
-        source    = 'apify_advanced_search',
-        stage     = 'cold_lead',
+        workspace        = workspace,
+        name             = name[:200],
+        email            = email[:254],
+        phone            = _phone.strip()[:50],
+        role             = (item.get('position') or item.get('title') or '').strip()[:200],
+        company          = company[:200],
+        company_domain   = _website[:200],
+        linkedin         = (item.get('linkedinUrl') or '').strip()[:200],
+        location         = location[:200],
+        industry         = (item.get('organizationIndustry') or item.get('industry') or '').strip()[:200],
+        company_size     = (item.get('organizationSize') or item.get('organizationHeadcount') or item.get('companySize') or '').strip()[:100],
+        org_type         = (item.get('organizationType') or item.get('companyType') or '').strip()[:200],
+        org_founded_year = str(item.get('organizationFoundedYear') or item.get('organizationFounded') or '').strip()[:20],
+        org_revenue      = (item.get('organizationRevenue') or item.get('companyRevenue') or '').strip()[:200],
+        connections      = _connections[:50],
+        notes            = '\n\n'.join(_notes_parts),
+        source           = 'apify_advanced_search',
+        stage            = 'cold_lead',
     ), name, email, company
 
 

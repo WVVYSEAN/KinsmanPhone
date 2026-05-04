@@ -295,6 +295,11 @@ class Contact(models.Model):
     called               = models.BooleanField(default=False)
     call_outcome         = models.CharField(max_length=20, blank=True, default='', choices=CALL_OUTCOME_CHOICES)
     email_outreach_enabled = models.BooleanField(default=False)
+    # Company profile fields (populated from Apify import)
+    org_type             = models.CharField(max_length=200, blank=True, default='')
+    org_founded_year     = models.CharField(max_length=20,  blank=True, default='')
+    org_revenue          = models.CharField(max_length=200, blank=True, default='')
+    connections          = models.CharField(max_length=50,  blank=True, default='')
     # Financial / PE matching fields
     revenue              = models.CharField(max_length=100, blank=True, default='')
     ebitda               = models.CharField(max_length=100, blank=True, default='')
