@@ -577,66 +577,168 @@ def master_panel(request):
 
 @workspace_required
 def dashboard(request, workspace, membership):
+    from django.utils import timezone as tz
     contact_stages = []
-
     for key, label, badge in STAGE_META:
         c_qs = Contact.objects.filter(workspace=workspace, stage=key).order_by('-created_at')
         contact_stages.append({'key': key, 'label': label, 'badge': badge,
                                 'records': c_qs[:10], 'count': c_qs.count()})
 
-    all_contacts = Contact.objects.filter(workspace=workspace)
-
-    # Outreach stats
+    all_contacts   = Contact.objects.filter(workspace=workspace)
     ws_contact_ids = all_contacts.values_list('id', flat=True)
-    leads_reached  = EmailThread.objects.filter(
-        contact_id__in=ws_contact_ids, direction='outbound'
+    contact_ct     = ContentType.objects.get_for_model(Contact)
+    now            = tz.now()
+
+    # Time-range selector (affects outreach KPIs; pipeline totals are always all-time)
+    time_range = request.GET.get('range', '30d')
+    if time_range == '7d':
+        range_days = 7
+    elif time_range == '90d':
+        range_days = 90
+    else:
+        time_range = '30d'
+        range_days = 30
+    range_start = now - datetime.timedelta(days=range_days)
+
+    # Outreach KPIs (time-range aware)
+    leads_reached = EmailThread.objects.filter(
+        contact_id__in=ws_contact_ids, direction='outbound',
+        sent_at__gte=range_start,
     ).values('contact_id').distinct().count()
     replies_received = EmailThread.objects.filter(
-        contact_id__in=ws_contact_ids, direction='inbound'
+        contact_id__in=ws_contact_ids, direction='inbound',
+        sent_at__gte=range_start,
     ).values('contact_id').distinct().count()
     reply_rate = round(replies_received / leads_reached * 100) if leads_reached else 0
     ai_replies_sent = AICallLog.objects.filter(
-        contact_id__in=ws_contact_ids, flagged=False
+        contact_id__in=ws_contact_ids, flagged=False,
+        created_at__gte=range_start,
+    ).count()
+    meetings_booked = TouchPoint.objects.filter(
+        content_type=contact_ct, object_id__in=ws_contact_ids,
+        touchpoint_type='meeting', created_at__gte=range_start,
     ).count()
     pending_drafts_count = AICallLog.objects.filter(
-        contact_id__in=ws_contact_ids, status='pending'
-    ).count()
-    from django.contrib.contenttypes.models import ContentType
-    contact_ct = ContentType.objects.get_for_model(Contact)
-    meetings_booked = TouchPoint.objects.filter(
-        content_type=contact_ct,
-        object_id__in=ws_contact_ids,
-        touchpoint_type='meeting'
+        contact_id__in=ws_contact_ids, status='pending',
     ).count()
 
+    # Phone stats (all-time — called is a boolean field, not timestamped)
     calls_made    = all_contacts.filter(called=True).count()
     calls_pending = all_contacts.filter(called=False).exclude(
         stage__in=['closed_won', 'closed_lost']
     ).count()
+
+    # ── Weekly chart data (last 7 weeks, fixed window) ─────────────────────────
+    weekly_data = []
+    for i in range(6, -1, -1):
+        wk_end   = now - datetime.timedelta(weeks=i)
+        wk_start = now - datetime.timedelta(weeks=i + 1)
+        w_reached = EmailThread.objects.filter(
+            contact_id__in=ws_contact_ids, direction='outbound',
+            sent_at__gte=wk_start, sent_at__lt=wk_end,
+        ).values('contact_id').distinct().count()
+        w_replied = EmailThread.objects.filter(
+            contact_id__in=ws_contact_ids, direction='inbound',
+            sent_at__gte=wk_start, sent_at__lt=wk_end,
+        ).values('contact_id').distinct().count()
+        w_ai = AICallLog.objects.filter(
+            contact_id__in=ws_contact_ids,
+            created_at__gte=wk_start, created_at__lt=wk_end,
+        ).count()
+        w_calls = TouchPoint.objects.filter(
+            content_type=contact_ct, object_id__in=ws_contact_ids,
+            touchpoint_type='call',
+            created_at__gte=wk_start, created_at__lt=wk_end,
+        ).count()
+        weekly_data.append({
+            'week': f'W{7 - i}',
+            'reached': w_reached,
+            'replied': w_replied,
+            'ai': w_ai,
+            'calls': w_calls,
+        })
+
+    # ── AI activity donut ──────────────────────────────────────────────────────
+    ai_auto     = AICallLog.objects.filter(contact_id__in=ws_contact_ids, status='auto_sent').count()
+    ai_approved = AICallLog.objects.filter(contact_id__in=ws_contact_ids, status__in=['approved', 'edited']).count()
+    ai_rejected = AICallLog.objects.filter(contact_id__in=ws_contact_ids, status='rejected').count()
+    ai_donut    = {'auto': ai_auto, 'approved': ai_approved, 'manual': ai_rejected}
+
+    # ── Activity feed (most-recent 6 from emails + touchpoints) ───────────────
+    recent_emails = list(
+        EmailThread.objects.filter(contact_id__in=ws_contact_ids)
+        .select_related('contact').order_by('-sent_at')[:8]
+    )
+    recent_tps = list(
+        TouchPoint.objects.filter(
+            content_type=contact_ct, object_id__in=ws_contact_ids,
+        ).order_by('-created_at')[:8]
+    )
+    tp_ids   = [tp.object_id for tp in recent_tps]
+    name_map = dict(Contact.objects.filter(pk__in=tp_ids).values_list('pk', 'name')) if tp_ids else {}
+    activity_feed = []
+    for e in recent_emails:
+        activity_feed.append({
+            'type':  'email_out' if e.direction == 'outbound' else 'email_in',
+            'name':  e.contact.name if e.contact else 'Unknown',
+            'label': 'Outreach sent' if e.direction == 'outbound' else 'Reply received',
+            'ts':    e.sent_at.isoformat(),
+        })
+    for tp in recent_tps:
+        activity_feed.append({
+            'type':  'touchpoint',
+            'name':  name_map.get(tp.object_id, 'Unknown'),
+            'label': tp.get_touchpoint_type_display(),
+            'ts':    tp.created_at.isoformat(),
+        })
+    activity_feed.sort(key=lambda x: x['ts'], reverse=True)
+    activity_feed = activity_feed[:6]
+
+    # ── Geo distribution (top 4 locations) ────────────────────────────────────
+    geo_data = list(
+        Contact.objects.filter(workspace=workspace)
+        .exclude(location='').exclude(location__isnull=True)
+        .values('location')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:4]
+    )
+
+    # ── Lead funnel (active pipeline stages only) ──────────────────────────────
+    funnel_data = [
+        {'label': label, 'count': all_contacts.filter(stage=key).count()}
+        for key, label, _ in STAGE_META
+        if key not in ('closed_won', 'closed_lost')
+    ]
 
     from .models import INDUSTRY_LIST
     email_templates_json = json.dumps(
         list(workspace.email_templates.values('id', 'name', 'is_default'))
     )
     context = {
-        'contact_stages':        contact_stages,
-        'email_templates_json':  email_templates_json,
-        'contact_total':   all_contacts.count(),
-        'contact_active':  all_contacts.filter(stage__in=['discovery_call', 'proposal', 'negotiation']).count(),
-        'contact_won':     all_contacts.filter(stage='closed_won').count(),
-        'leads_reached':      leads_reached,
-        'replies_received':   replies_received,
-        'reply_rate':         reply_rate,
-        'ai_replies_sent':       ai_replies_sent,
-        'calls_made':            calls_made,
-        'calls_pending':         calls_pending,
-        'pending_drafts_count':  pending_drafts_count,
-        'meetings_booked':    meetings_booked,
-        'workspace':       workspace,
-        'membership':      membership,
-        'industry_list':   INDUSTRY_LIST,
-        'source_choices':  Contact._meta.get_field('source').choices,
-        'stage_choices':   Contact._meta.get_field('stage').choices,
+        'contact_stages':       contact_stages,
+        'email_templates_json': email_templates_json,
+        'contact_total':        all_contacts.count(),
+        'contact_active':       all_contacts.filter(stage__in=['discovery_call', 'proposal', 'negotiation']).count(),
+        'contact_won':          all_contacts.filter(stage='closed_won').count(),
+        'leads_reached':        leads_reached,
+        'replies_received':     replies_received,
+        'reply_rate':           reply_rate,
+        'ai_replies_sent':      ai_replies_sent,
+        'calls_made':           calls_made,
+        'calls_pending':        calls_pending,
+        'pending_drafts_count': pending_drafts_count,
+        'meetings_booked':      meetings_booked,
+        'time_range':           time_range,
+        'weekly_data_json':     json.dumps(weekly_data),
+        'ai_donut_json':        json.dumps(ai_donut),
+        'activity_feed_json':   json.dumps(activity_feed),
+        'geo_data_json':        json.dumps(geo_data),
+        'funnel_data_json':     json.dumps(funnel_data),
+        'workspace':            workspace,
+        'membership':           membership,
+        'industry_list':        INDUSTRY_LIST,
+        'source_choices':       Contact._meta.get_field('source').choices,
+        'stage_choices':        Contact._meta.get_field('stage').choices,
     }
     return render(request, 'crm/dashboard.html', context)
 

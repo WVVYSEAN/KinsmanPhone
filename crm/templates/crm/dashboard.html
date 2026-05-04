@@ -3,60 +3,232 @@
 {% block title %}Kinsman Dashboard{% endblock %}
 
 {% block content %}
-<main class="max-w-7xl mx-auto px-8 py-8 space-y-6">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,600;0,700&family=DM+Mono:wght@400;500&display=swap');
 
-  <!-- ═══════════════════════ CONTACTS PANE ═══════════════════════ -->
-  <div id="pane-contacts">
+  :root {
+    --d-bg:      #0d111a;
+    --d-card:    #161c2b;
+    --d-card2:   #1a2235;
+    --d-border:  rgba(255,255,255,.06);
+    --d-cyan:    #00e5cc;
+    --d-blue:    #4f8ef7;
+    --d-rose:    #f43f5e;
+    --d-amber:   #f59e0b;
+    --d-violet:  #8b5cf6;
+    --d-text:    #e2e8f0;
+    --d-muted:   #64748b;
+    --d-mono:    'DM Mono', 'JetBrains Mono', monospace;
+    --d-sans:    'DM Sans', system-ui, sans-serif;
+  }
 
-    <!-- Page header -->
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-xl font-bold" style="color:var(--text-primary)">Pipeline Overview</h1>
-        <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">{{ contact_total }} total contact{{ contact_total|pluralize }} across all stages</p>
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(14px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes growBar {
+    from { width:0; }
+  }
+  @keyframes dPing {
+    75%,100% { transform:scale(2.2); opacity:0; }
+  }
+  @keyframes dPulse {
+    0%,100% { opacity:1; }
+    50%     { opacity:.35; }
+  }
+
+  .d-card {
+    background: var(--d-card);
+    border: 1px solid var(--d-border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .d-label {
+    font-family: var(--d-sans);
+    font-size: .6875rem;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--d-muted);
+  }
+  .d-num {
+    font-family: var(--d-mono);
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--d-text);
+    line-height: 1.1;
+    margin-top: 4px;
+  }
+  .d-chart-title {
+    font-family: var(--d-sans);
+    font-size: .8125rem;
+    font-weight: 700;
+    color: var(--d-text);
+    margin-bottom: 14px;
+  }
+  .d-range-btn {
+    font-size: .6875rem;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--d-muted);
+    transition: all 130ms ease;
+  }
+  .d-range-btn:hover { color: var(--d-text); }
+  .d-range-btn.active { background: var(--d-cyan); color: #0d111a; }
+  .d-kpi-sub {
+    font-size: .6875rem;
+    color: var(--d-muted);
+    margin-top: 5px;
+  }
+</style>
+
+<main class="max-w-7xl mx-auto px-6 py-8 space-y-6" style="font-family:var(--d-sans)">
+
+  <!-- ═══ ANALYTICS SECTION ═══════════════════════════════════════════════════ -->
+
+  <!-- Page header -->
+  <div class="flex items-center justify-between" style="animation:fadeUp .35s ease both">
+    <div>
+      <h1 style="font-size:1.25rem;font-weight:700;color:var(--d-text)">Kinsman Dashboard</h1>
+      <p class="d-kpi-sub">{{ contact_total }} total contact{{ contact_total|pluralize }} across all stages</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1" style="background:var(--d-card);border:1px solid var(--d-border);border-radius:8px;padding:3px">
+        <a href="?range=7d"  class="d-range-btn {% if time_range == '7d' %}active{% endif %}">7d</a>
+        <a href="?range=30d" class="d-range-btn {% if time_range == '30d' %}active{% endif %}">30d</a>
+        <a href="?range=90d" class="d-range-btn {% if time_range == '90d' %}active{% endif %}">90d</a>
       </div>
       <button onclick="openAddModal('contact','cold_lead')" class="wvvy-btn-primary">+ Add Lead</button>
     </div>
+  </div>
 
-    <!-- Outreach stats row (5 cards) -->
-    <div class="grid grid-cols-5 gap-4 mb-4">
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Leads Reached</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ leads_reached }}</p>
+  <!-- KPI Row 1 — outreach (5 cards with sparklines) -->
+  <div class="grid grid-cols-5 gap-4">
+
+    <div class="d-card" style="animation:fadeUp .4s ease .05s both">
+      <p class="d-label">Leads Reached</p>
+      <p class="d-num" id="kpi-reached" data-target="{{ leads_reached }}">0</p>
+      <svg class="w-full" height="28" id="spark-reached" style="margin-top:8px;display:block"></svg>
+      <p class="d-kpi-sub">last {{ time_range }}</p>
+    </div>
+
+    <div class="d-card" style="animation:fadeUp .4s ease .10s both">
+      <p class="d-label">Replies Received</p>
+      <p class="d-num" id="kpi-replies" data-target="{{ replies_received }}">0</p>
+      <svg class="w-full" height="28" id="spark-replies" style="margin-top:8px;display:block"></svg>
+      <p class="d-kpi-sub">last {{ time_range }}</p>
+    </div>
+
+    <div class="d-card" style="animation:fadeUp .4s ease .15s both">
+      <p class="d-label">Reply Rate</p>
+      <p class="d-num" style="color:var(--d-cyan)" id="kpi-rate" data-target="{{ reply_rate }}">0<span style="font-size:1rem;color:var(--d-muted)">%</span></p>
+      <svg class="w-full" height="28" id="spark-rate" style="margin-top:8px;display:block"></svg>
+      <p class="d-kpi-sub">last {{ time_range }}</p>
+    </div>
+
+    <div class="d-card" style="animation:fadeUp .4s ease .20s both">
+      <p class="d-label">Calls Made</p>
+      <p class="d-num" style="color:var(--d-cyan)" id="kpi-calls" data-target="{{ calls_made }}">0</p>
+      <svg class="w-full" height="28" id="spark-calls" style="margin-top:8px;display:block"></svg>
+      <p class="d-kpi-sub">logged all-time</p>
+    </div>
+
+    <div class="d-card" style="animation:fadeUp .4s ease .25s both">
+      <p class="d-label">Meetings Booked</p>
+      <p class="d-num" id="kpi-meetings" data-target="{{ meetings_booked }}">0</p>
+      <svg class="w-full" height="28" id="spark-meetings" style="margin-top:8px;display:block"></svg>
+      <p class="d-kpi-sub">last {{ time_range }}</p>
+    </div>
+
+  </div>
+
+  <!-- KPI Row 2 — pipeline (3 cards) -->
+  <div class="grid grid-cols-3 gap-4">
+
+    <div class="d-card" style="animation:fadeUp .4s ease .30s both">
+      <p class="d-label">Total Contacts</p>
+      <p class="d-num" id="kpi-total" data-target="{{ contact_total }}">0</p>
+    </div>
+
+    <div class="d-card" style="animation:fadeUp .4s ease .35s both">
+      <p class="d-label">Calls Pending</p>
+      <p class="d-num" id="kpi-pending" data-target="{{ calls_pending }}">0</p>
+      <p class="d-kpi-sub">not yet called</p>
+    </div>
+
+    <div class="d-card" style="animation:fadeUp .4s ease .40s both">
+      <p class="d-label">Closed Won</p>
+      <p class="d-num" style="color:var(--d-cyan)" id="kpi-won" data-target="{{ contact_won }}">0</p>
+    </div>
+
+  </div>
+
+  <!-- Charts row — bar chart | gauge | donut -->
+  <div class="grid grid-cols-3 gap-4">
+
+    <!-- Outreach Volume bar chart -->
+    <div class="d-card" style="animation:fadeUp .4s ease .45s both">
+      <p class="d-chart-title">Outreach Volume</p>
+      <div class="flex items-center gap-4" style="margin-bottom:12px;font-size:.6875rem;color:var(--d-muted)">
+        <span style="display:inline-flex;align-items:center;gap:5px">
+          <span style="width:9px;height:9px;border-radius:2px;background:var(--d-cyan);display:inline-block"></span>Reached
+        </span>
+        <span style="display:inline-flex;align-items:center;gap:5px">
+          <span style="width:9px;height:9px;border-radius:2px;background:var(--d-blue);display:inline-block"></span>Replied
+        </span>
       </div>
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Replies Received</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ replies_received }}</p>
-      </div>
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Reply Rate</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--cyan)">{{ reply_rate }}<span class="text-lg font-normal" style="color:var(--text-tertiary)">%</span></p>
-      </div>
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Calls Made</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--cyan)">{{ calls_made }}</p>
-        <p class="text-xs mt-1" style="color:var(--text-tertiary)">logged by team</p>
-      </div>
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Meetings Booked</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--cyan)">{{ meetings_booked }}</p>
+      <svg id="chart-bar" width="100%" height="110" style="display:block;overflow:visible"></svg>
+    </div>
+
+    <!-- Reply Rate gauge -->
+    <div class="d-card flex flex-col items-center" style="animation:fadeUp .4s ease .50s both">
+      <p class="d-chart-title" style="text-align:center;width:100%">Reply Rate</p>
+      <svg id="chart-gauge" viewBox="0 0 160 100" width="100%" style="max-width:190px;display:block"></svg>
+      <p style="font-family:var(--d-mono);font-size:1.75rem;font-weight:500;color:var(--d-cyan);margin-top:-4px">{{ reply_rate }}<span style="font-size:1rem;color:var(--d-muted)">%</span></p>
+      <p class="d-kpi-sub">last {{ time_range }}</p>
+    </div>
+
+    <!-- AI Activity donut -->
+    <div class="d-card" style="animation:fadeUp .4s ease .55s both">
+      <p class="d-chart-title">AI Activity</p>
+      <div style="display:flex;align-items:center;gap:18px">
+        <svg id="chart-donut" viewBox="0 0 100 100" width="90" height="90" style="flex-shrink:0"></svg>
+        <div id="donut-legend" style="font-family:var(--d-sans);font-size:.6875rem;color:var(--d-muted);display:flex;flex-direction:column;gap:8px"></div>
       </div>
     </div>
 
-    <!-- Pipeline stats row (3 cards) -->
-    <div class="grid grid-cols-3 gap-4 mb-6">
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Total Contacts</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ contact_total }}</p>
-      </div>
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Calls Pending</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ calls_pending }}</p>
-        <p class="text-xs mt-1" style="color:var(--text-tertiary)">not yet called</p>
-      </div>
-      <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Closed Won</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--cyan)">{{ contact_won }}</p>
-      </div>
+  </div>
+
+  <!-- Lower row — funnel | geo | activity feed -->
+  <div class="grid grid-cols-3 gap-4">
+
+    <!-- Lead Funnel -->
+    <div class="d-card" style="animation:fadeUp .4s ease .60s both">
+      <p class="d-chart-title">Lead Funnel</p>
+      <div id="funnel-bars" class="space-y-3"></div>
+    </div>
+
+    <!-- Geo Distribution -->
+    <div class="d-card" style="animation:fadeUp .4s ease .65s both">
+      <p class="d-chart-title">Top Locations</p>
+      <div id="geo-bars" class="space-y-3"></div>
+    </div>
+
+    <!-- Live Activity Feed -->
+    <div class="d-card" style="animation:fadeUp .4s ease .70s both">
+      <p class="d-chart-title">Live Activity</p>
+      <div id="activity-feed" class="space-y-3"></div>
+    </div>
+
+  </div>
+
+  <!-- ═══ PIPELINE TABLES ══════════════════════════════════════════════════════ -->
+  <div id="pane-contacts" style="padding-top:8px">
+
+    <div class="flex items-center justify-between mb-4">
+      <h2 style="font-size:1rem;font-weight:700;color:var(--d-text)">Pipeline Overview</h2>
     </div>
 
     {% for stage in contact_stages %}
@@ -68,7 +240,8 @@
         </div>
         <div class="flex items-center gap-2">
           {% if stage.count > 0 %}
-          <a href="/contacts/{{ stage.key }}/" style="font-size:0.75rem;font-weight:600;color:var(--cyan);opacity:0.8;transition:opacity 150ms ease;text-decoration:none;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">View all {{ stage.count }} &rarr;</a>
+          <a href="/contacts/{{ stage.key }}/" style="font-size:.75rem;font-weight:600;color:var(--cyan);opacity:.8;transition:opacity 150ms;text-decoration:none"
+             onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.8'">View all {{ stage.count }} &rarr;</a>
           {% endif %}
           <button onclick="openAddModal('contact','{{ stage.key }}')" class="wvvy-btn-add">+ Add</button>
         </div>
@@ -82,14 +255,14 @@
                  data-dropdown-cols="1,7" data-dropdown-labels="Heat,Industry">
             <thead>
               <tr class="text-left" style="background:var(--bg-card);border-bottom:1px solid var(--border-subtle)">
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Name</th>
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Heat</th>
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Company</th>
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Phone</th>
-                <th class="px-4 py-2.5 wvvy-section-label text-center" style="font-size:0.6875rem">Called</th>
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Call Notes</th>
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Location</th>
-                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Industry</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Name</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Heat</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Company</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Phone</th>
+                <th class="px-4 py-2.5 wvvy-section-label text-center" style="font-size:.6875rem">Called</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Call Notes</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Location</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:.6875rem">Industry</th>
               </tr>
             </thead>
             <tbody class="divide-y" style="border-color:var(--border-subtle)">
@@ -97,34 +270,30 @@
               <tr class="wvvy-tr-hover transition-colors">
                 <td class="px-4 py-2.5 font-medium">
                   <a href="/contact/{{ c.id }}/"
-                     style="color:var(--text-primary);font-weight:500;text-decoration:none;" class="hover:underline transition-colors" onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-primary)'">{{ c.name }}</a>
+                     style="color:var(--text-primary);font-weight:500;text-decoration:none"
+                     onmouseenter="this.style.color='var(--cyan)'" onmouseleave="this.style.color='var(--text-primary)'">{{ c.name }}</a>
                 </td>
                 <td class="px-4 py-2.5"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ c.heat_badge }}">{{ c.get_heat_display }}</span></td>
                 <td class="px-4 py-2.5" style="color:var(--text-secondary)">{{ c.company|default:"—" }}</td>
                 <td class="px-4 py-2.5">
                   {% if c.phone %}
-                  <a href="tel:{{ c.phone }}" style="color:var(--cyan);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:0.75rem"
-                     onmouseenter="this.style.opacity='0.7'" onmouseleave="this.style.opacity='1'">{{ c.phone }}</a>
-                  {% else %}
-                  <span style="color:var(--text-tertiary)">—</span>
-                  {% endif %}
+                  <a href="tel:{{ c.phone }}" style="color:var(--cyan);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:.75rem"
+                     onmouseenter="this.style.opacity='.7'" onmouseleave="this.style.opacity='1'">{{ c.phone }}</a>
+                  {% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}
                 </td>
                 <td class="px-4 py-2.5 text-center">
-                  <input type="checkbox"
-                         id="called-{{ c.pk }}"
-                         {% if c.called %}checked{% endif %}
+                  <input type="checkbox" id="called-{{ c.pk }}" {% if c.called %}checked{% endif %}
                          onchange="toggleCalled({{ c.pk }}, this)"
                          style="width:15px;height:15px;accent-color:#00ffcc;cursor:pointer">
                 </td>
                 <td class="px-4 py-2.5" style="max-width:180px">
                   {% if c.call_notes %}
                   <span class="call-notes-preview" data-pk="{{ c.pk }}" data-notes="{{ c.call_notes|escapejs }}"
-                        style="font-size:0.75rem;color:var(--text-secondary);cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-                        onclick="openCallNotes({{ c.pk }}, this)"
-                        title="{{ c.call_notes }}">{{ c.call_notes|truncatechars:50 }}</span>
+                        style="font-size:.75rem;color:var(--text-secondary);cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                        onclick="openCallNotes({{ c.pk }}, this)" title="{{ c.call_notes }}">{{ c.call_notes|truncatechars:50 }}</span>
                   {% else %}
                   <span class="call-notes-preview" data-pk="{{ c.pk }}" data-notes=""
-                        style="font-size:0.75rem;color:var(--text-tertiary);cursor:pointer"
+                        style="font-size:.75rem;color:var(--text-tertiary);cursor:pointer"
                         onclick="openCallNotes({{ c.pk }}, this)">+ Add note</span>
                   {% endif %}
                 </td>
@@ -137,12 +306,15 @@
         </div>
         {% else %}
         <div class="px-6 py-6 text-center">
-          <p class="text-sm" style="color:var(--text-tertiary)">No {{ stage.label|lower }} contacts. <button onclick="openAddModal('contact','{{ stage.key }}')" style="color:var(--cyan);text-decoration:underline">Add one</button>.</p>
+          <p class="text-sm" style="color:var(--text-tertiary)">No {{ stage.label|lower }} contacts.
+            <button onclick="openAddModal('contact','{{ stage.key }}')" style="color:var(--cyan);text-decoration:underline">Add one</button>.
+          </p>
         </div>
         {% endif %}
       </div>
     </section>
     {% endfor %}
+
   </div><!-- /pane-contacts -->
 
 </main>
@@ -153,15 +325,13 @@
   <div class="relative wvvy-modal-panel w-full max-w-lg max-h-[90vh] overflow-y-auto">
     <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--border-subtle)">
       <h2 id="modal-title" class="text-base font-bold" style="color:var(--text-primary)">Add Contact</h2>
-      <button onclick="closeAddModal()" class="wvvy-btn-ghost" style="padding:0.25rem 0.5rem;border:none">
+      <button onclick="closeAddModal()" class="wvvy-btn-ghost" style="padding:.25rem .5rem;border:none">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
       </button>
     </div>
     <form id="add-form" class="px-6 py-5 space-y-4" onsubmit="submitAddForm(event)">
-
-      <!-- Contact fields -->
       <div id="fields-contact" class="hidden grid grid-cols-2 gap-4">
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">First Name <span class="text-red-400">*</span></label>
@@ -223,18 +393,15 @@
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Notes</label>
           <textarea name="notes" rows="2" placeholder="Any additional context…" class="wvvy-input resize-none"></textarea>
         </div>
-        <!-- Email template selector — shown only for cold_lead stage -->
         <div class="col-span-2" id="contact-template-row" style="display:none">
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">
-            Outreach Template
-            <span class="font-normal ml-1" style="color:var(--text-tertiary)">(sent automatically)</span>
+            Outreach Template <span class="font-normal ml-1" style="color:var(--text-tertiary)">(sent automatically)</span>
           </label>
           <select name="template_id" id="contact-template-select" class="wvvy-input">
             <option value="">— Use default template —</option>
           </select>
         </div>
       </div>
-
       <div class="flex items-center justify-end gap-3 pt-2">
         <button type="button" onclick="closeAddModal()" class="wvvy-btn-ghost">Cancel</button>
         <button type="submit" id="add-submit" class="wvvy-btn-primary">Save</button>
@@ -247,139 +414,423 @@
 
 {% block extra_js %}
 <script>
-  const _emailTemplates = {{ email_templates_json|safe }};
+const _emailTemplates  = {{ email_templates_json|safe }};
+const _weeklyData      = {{ weekly_data_json|safe }};
+const _aiDonut         = {{ ai_donut_json|safe }};
+const _activityFeed    = {{ activity_feed_json|safe }};
+const _geoData         = {{ geo_data_json|safe }};
+const _funnelData      = {{ funnel_data_json|safe }};
 
-  function openAddModal(modelType, stage) {
-    document.getElementById('modal-title').textContent = 'Add Contact';
-    document.getElementById('add-submit').textContent  = 'Add Contact';
-    document.getElementById('fields-contact').classList.remove('hidden');
-
-    const sel = document.getElementById('contact-stage-select');
-    if (sel && stage) {
-      const opt = sel.querySelector(`option[value="${stage}"]`);
-      if (opt) opt.selected = true;
-    }
-
-    const tmplRow = document.getElementById('contact-template-row');
-    const isColdLead = stage === 'cold_lead';
-    tmplRow.style.display = isColdLead ? '' : 'none';
-    if (isColdLead) _populateTemplateSelect();
-
-    const stageSelect = document.getElementById('contact-stage-select');
-    if (stageSelect) {
-      stageSelect.onchange = function() {
-        const cold = this.value === 'cold_lead';
-        tmplRow.style.display = cold ? '' : 'none';
-        if (cold) _populateTemplateSelect();
-      };
-    }
-
-    document.getElementById('add-modal').classList.remove('hidden');
-    document.querySelector('#fields-contact input')?.focus();
+// ── Count-up animation ────────────────────────────────────────────────────────
+function countUp(el) {
+  const target = parseInt(el.dataset.target, 10) || 0;
+  if (target === 0) { el.dataset.done = '1'; return; }
+  const dur  = 1200;
+  const start = performance.now();
+  const suffix = el.innerHTML.replace(/^\d+/, '');
+  function step(now) {
+    const t = Math.min((now - start) / dur, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.innerHTML = Math.round(ease * target) + suffix;
+    if (t < 1) requestAnimationFrame(step);
+    else el.dataset.done = '1';
   }
+  requestAnimationFrame(step);
+}
 
-  function _populateTemplateSelect() {
-    const sel = document.getElementById('contact-template-select');
-    sel.innerHTML = '<option value="">— Use default template —</option>';
-    _emailTemplates.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = t.name + (t.is_default ? ' (default)' : '');
-      sel.appendChild(opt);
+document.querySelectorAll('.d-num[data-target]').forEach(el => {
+  const obs = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !el.dataset.done) { countUp(el); obs.disconnect(); }
+  }, { threshold: 0.3 });
+  obs.observe(el);
+});
+
+// ── Sparklines ────────────────────────────────────────────────────────────────
+function drawSparkline(svgId, values, color) {
+  const svg = document.getElementById(svgId);
+  if (!svg || !values || values.length < 2) return;
+  const W   = svg.getBoundingClientRect().width || 180;
+  const H   = 28;
+  const max = Math.max(...values, 1);
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * W;
+    const y = H - 2 - (v / max) * (H - 6);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const fill = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  fill.setAttribute('points', `0,${H} ${pts.join(' ')} ${W},${H}`);
+  fill.setAttribute('fill', color);
+  fill.setAttribute('fill-opacity', '0.12');
+  svg.appendChild(fill);
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', pts.join(' '));
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width', '1.5');
+  line.setAttribute('stroke-linejoin', 'round');
+  line.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(line);
+}
+
+const wkRates  = _weeklyData.map(w => w.reached > 0 ? Math.round(w.replied / w.reached * 100) : 0);
+drawSparkline('spark-reached',  _weeklyData.map(w => w.reached), '#00e5cc');
+drawSparkline('spark-replies',  _weeklyData.map(w => w.replied), '#4f8ef7');
+drawSparkline('spark-rate',     wkRates,                         '#00e5cc');
+drawSparkline('spark-calls',    _weeklyData.map(w => w.calls),   '#00e5cc');
+drawSparkline('spark-meetings', _weeklyData.map(w => w.ai),      '#8b5cf6');
+
+// ── Outreach Volume bar chart ─────────────────────────────────────────────────
+(function drawBarChart() {
+  const svg   = document.getElementById('chart-bar');
+  if (!svg) return;
+  const W     = svg.getBoundingClientRect().width || 260;
+  const H     = 110;
+  const padT  = 6, padB = 22, padL = 4, padR = 4;
+  const innerH = H - padT - padB;
+  const innerW = W - padL - padR;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const maxVal = Math.max(..._weeklyData.map(w => Math.max(w.reached, w.replied)), 1);
+  const n      = _weeklyData.length;
+  const grpW   = innerW / n;
+  const bW     = Math.min(grpW * 0.32, 13);
+  const gap    = 2;
+
+  _weeklyData.forEach((w, i) => {
+    const gx = padL + i * grpW + grpW / 2;
+
+    function makeBar(val, x, color) {
+      const bH  = Math.max((val / maxVal) * innerH, val > 0 ? 2 : 0);
+      const by  = padT + innerH - bH;
+      const r   = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', (x - bW / 2).toFixed(1));
+      r.setAttribute('y', by.toFixed(1));
+      r.setAttribute('width', bW);
+      r.setAttribute('height', bH.toFixed(1) || 0);
+      r.setAttribute('fill', color);
+      r.setAttribute('rx', 2);
+      r.setAttribute('fill-opacity', '.85');
+      svg.appendChild(r);
+    }
+
+    makeBar(w.reached, gx - gap / 2 - bW / 2, '#00e5cc');
+    makeBar(w.replied, gx + gap / 2 + bW / 2, '#4f8ef7');
+
+    const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    lbl.setAttribute('x', gx.toFixed(1));
+    lbl.setAttribute('y', H - 6);
+    lbl.setAttribute('text-anchor', 'middle');
+    lbl.setAttribute('fill', '#64748b');
+    lbl.setAttribute('font-size', 8.5);
+    lbl.setAttribute('font-family', 'DM Sans, system-ui, sans-serif');
+    lbl.textContent = w.week;
+    svg.appendChild(lbl);
+  });
+})();
+
+// ── Reply Rate gauge ──────────────────────────────────────────────────────────
+(function drawGauge() {
+  const svg  = document.getElementById('chart-gauge');
+  if (!svg) return;
+  const rate = {{ reply_rate }};
+  const cx = 80, cy = 90, r = 52;
+
+  const bgArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  bgArc.setAttribute('d', `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`);
+  bgArc.setAttribute('fill', 'none');
+  bgArc.setAttribute('stroke', 'rgba(255,255,255,.06)');
+  bgArc.setAttribute('stroke-width', 10);
+  bgArc.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(bgArc);
+
+  if (rate > 0) {
+    const safeRate  = Math.min(rate, 99.9);
+    const endRad    = (180 + (safeRate / 100) * 180) * Math.PI / 180;
+    const ex        = cx + r * Math.cos(endRad);
+    const ey        = cy + r * Math.sin(endRad);
+    const largeArc  = 0;
+    const fgArc     = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    fgArc.setAttribute('d', `M ${cx - r} ${cy} A ${r} ${r} 0 ${largeArc} 1 ${ex.toFixed(2)} ${ey.toFixed(2)}`);
+    fgArc.setAttribute('fill', 'none');
+    fgArc.setAttribute('stroke', '#00e5cc');
+    fgArc.setAttribute('stroke-width', 10);
+    fgArc.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(fgArc);
+  }
+})();
+
+// ── AI Activity donut ─────────────────────────────────────────────────────────
+(function drawDonut() {
+  const svg    = document.getElementById('chart-donut');
+  if (!svg) return;
+  const legend = document.getElementById('donut-legend');
+  const colors = ['#00e5cc', '#4f8ef7', '#f43f5e'];
+  const labels = ['Auto Sent', 'Approved', 'Rejected'];
+  const vals   = [_aiDonut.auto, _aiDonut.approved, _aiDonut.manual];
+  const total  = vals.reduce((a, b) => a + b, 0);
+  const circ   = 2 * Math.PI * 35;
+
+  if (total === 0) {
+    const empty = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    empty.setAttribute('cx', 50); empty.setAttribute('cy', 50); empty.setAttribute('r', 35);
+    empty.setAttribute('fill', 'none');
+    empty.setAttribute('stroke', 'rgba(255,255,255,.06)');
+    empty.setAttribute('stroke-width', 16);
+    svg.appendChild(empty);
+  } else {
+    let offset = 0;
+    vals.forEach((val, i) => {
+      const len = (val / total) * circ;
+      const c   = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', 50); c.setAttribute('cy', 50); c.setAttribute('r', 35);
+      c.setAttribute('fill', 'none');
+      c.setAttribute('stroke', colors[i]);
+      c.setAttribute('stroke-width', 16);
+      c.setAttribute('stroke-dasharray', `${len.toFixed(2)} ${circ.toFixed(2)}`);
+      c.setAttribute('stroke-dashoffset', (-offset).toFixed(2));
+      c.setAttribute('transform', 'rotate(-90 50 50)');
+      svg.appendChild(c);
+      offset += len;
     });
   }
 
-  function closeAddModal() {
-    document.getElementById('add-modal').classList.add('hidden');
-    document.getElementById('add-form').reset();
+  const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  txt.setAttribute('x', 50); txt.setAttribute('y', 55);
+  txt.setAttribute('text-anchor', 'middle');
+  txt.setAttribute('fill', '#e2e8f0');
+  txt.setAttribute('font-size', 15);
+  txt.setAttribute('font-family', 'DM Mono, monospace');
+  txt.setAttribute('font-weight', 500);
+  txt.textContent = total;
+  svg.appendChild(txt);
+
+  vals.forEach((val, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;gap:6px';
+    div.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
+      <span>${labels[i]}: <strong style="color:#e2e8f0">${val}</strong></span>`;
+    legend.appendChild(div);
+  });
+})();
+
+// ── Lead Funnel bars ──────────────────────────────────────────────────────────
+(function drawFunnel() {
+  const container = document.getElementById('funnel-bars');
+  if (!container || !_funnelData.length) return;
+  const maxCount  = Math.max(..._funnelData.map(d => d.count), 1);
+  _funnelData.forEach(d => {
+    const pct  = Math.round((d.count / maxCount) * 100);
+    const div  = document.createElement('div');
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:.6875rem;color:var(--d-muted);font-family:var(--d-sans)">${d.label}</span>
+        <span style="font-size:.6875rem;font-family:var(--d-mono);color:var(--d-text)">${d.count}</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.05);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:0;background:var(--d-cyan);border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1)"
+             data-pct="${pct}"></div>
+      </div>`;
+    container.appendChild(div);
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    container.querySelectorAll('[data-pct]').forEach(el => {
+      el.style.width = el.dataset.pct + '%';
+    });
+  }));
+})();
+
+// ── Geo Distribution bars ─────────────────────────────────────────────────────
+(function drawGeo() {
+  const container = document.getElementById('geo-bars');
+  if (!container) return;
+  if (!_geoData.length) {
+    container.innerHTML = '<p style="font-size:.75rem;color:var(--d-muted)">No location data yet.</p>';
+    return;
   }
+  const maxCount = Math.max(..._geoData.map(d => d.count), 1);
+  _geoData.forEach(d => {
+    const pct  = Math.round((d.count / maxCount) * 100);
+    const div  = document.createElement('div');
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:.6875rem;color:var(--d-muted);font-family:var(--d-sans);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.location}</span>
+        <span style="font-size:.6875rem;font-family:var(--d-mono);color:var(--d-text)">${d.count}</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.05);border-radius:99px;overflow:hidden">
+        <div style="height:100%;width:0;background:var(--d-blue);border-radius:99px;transition:width 1s cubic-bezier(.4,0,.2,1)"
+             data-pct="${pct}"></div>
+      </div>`;
+    container.appendChild(div);
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    container.querySelectorAll('[data-pct]').forEach(el => {
+      el.style.width = el.dataset.pct + '%';
+    });
+  }));
+})();
 
-  function submitAddForm(e) {
-    e.preventDefault();
-    const btn  = document.getElementById('add-submit');
-    const data = Object.fromEntries(new FormData(document.getElementById('add-form')).entries());
+// ── Live Activity Feed ────────────────────────────────────────────────────────
+(function renderActivityFeed() {
+  const container = document.getElementById('activity-feed');
+  if (!container) return;
+  if (!_activityFeed.length) {
+    container.innerHTML = '<p style="font-size:.75rem;color:var(--d-muted)">No activity yet.</p>';
+    return;
+  }
+  const icons = {
+    email_out:  { color: '#00e5cc', label: '↑' },
+    email_in:   { color: '#4f8ef7', label: '↓' },
+    touchpoint: { color: '#f59e0b', label: '·' },
+  };
+  function relTime(isoStr) {
+    const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+    if (diff < 60)   return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400)return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  }
+  _activityFeed.forEach((item, idx) => {
+    const ic  = icons[item.type] || icons.touchpoint;
+    const div = document.createElement('div');
+    div.style.cssText = `display:flex;align-items:flex-start;gap:10px;animation:fadeUp .3s ease ${(idx * 0.06).toFixed(2)}s both`;
+    div.innerHTML = `
+      <span style="position:relative;flex-shrink:0;margin-top:2px">
+        <span style="display:block;width:8px;height:8px;border-radius:50%;background:${ic.color}"></span>
+        <span style="position:absolute;inset:0;border-radius:50%;background:${ic.color};animation:dPing 2s ease ${(idx * 0.3).toFixed(1)}s infinite"></span>
+      </span>
+      <div style="min-width:0">
+        <p style="font-size:.75rem;color:var(--d-text);font-family:var(--d-sans);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(item.name)}</p>
+        <p style="font-size:.6875rem;color:var(--d-muted)">${escHtml(item.label)} · ${relTime(item.ts)}</p>
+      </div>`;
+    container.appendChild(div);
+  });
+})();
 
-    if ('first_name' in data || 'last_name' in data) {
-      data.name = [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
-      delete data.first_name;
-      delete data.last_name;
-    }
+// ── Add modal ─────────────────────────────────────────────────────────────────
+function openAddModal(modelType, stage) {
+  document.getElementById('modal-title').textContent = 'Add Contact';
+  document.getElementById('add-submit').textContent  = 'Add Contact';
+  document.getElementById('fields-contact').classList.remove('hidden');
 
-    btn.disabled    = true;
-    btn.textContent = 'Saving…';
+  const sel = document.getElementById('contact-stage-select');
+  if (sel && stage) {
+    const opt = sel.querySelector(`option[value="${stage}"]`);
+    if (opt) opt.selected = true;
+  }
+  const tmplRow = document.getElementById('contact-template-row');
+  const isCold  = stage === 'cold_lead';
+  tmplRow.style.display = isCold ? '' : 'none';
+  if (isCold) _populateTemplateSelect();
 
-    fetch(`/api/create/contact/`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body:    JSON.stringify(data),
+  const stageSelect = document.getElementById('contact-stage-select');
+  if (stageSelect) {
+    stageSelect.onchange = function() {
+      const cold = this.value === 'cold_lead';
+      tmplRow.style.display = cold ? '' : 'none';
+      if (cold) _populateTemplateSelect();
+    };
+  }
+  document.getElementById('add-modal').classList.remove('hidden');
+  document.querySelector('#fields-contact input')?.focus();
+}
+
+function _populateTemplateSelect() {
+  const sel = document.getElementById('contact-template-select');
+  sel.innerHTML = '<option value="">— Use default template —</option>';
+  _emailTemplates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name + (t.is_default ? ' (default)' : '');
+    sel.appendChild(opt);
+  });
+}
+
+function closeAddModal() {
+  document.getElementById('add-modal').classList.add('hidden');
+  document.getElementById('add-form').reset();
+}
+
+function submitAddForm(e) {
+  e.preventDefault();
+  const btn  = document.getElementById('add-submit');
+  const data = Object.fromEntries(new FormData(document.getElementById('add-form')).entries());
+  if ('first_name' in data || 'last_name' in data) {
+    data.name = [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
+    delete data.first_name; delete data.last_name;
+  }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  fetch('/api/create/contact/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+    body: JSON.stringify(data),
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) { showToast(res.error, true); return; }
+      const emailMsg = res.email_status ? ` · email: ${res.email_status}` : '';
+      showToast(`${res.name} added${emailMsg}`);
+      closeAddModal();
+      setTimeout(() => location.reload(), 800);
     })
-      .then(r => r.json())
-      .then(res => {
-        if (res.error) { showToast(res.error, true); return; }
-        const emailMsg = res.email_status ? ` · email: ${res.email_status}` : '';
-        showToast(`${res.name} added${emailMsg}`);
-        closeAddModal();
-        setTimeout(() => location.reload(), 800);
-      })
-      .catch(() => showToast('Failed to save', true))
-      .finally(() => { btn.disabled = false; btn.textContent = 'Save'; });
-  }
+    .catch(() => showToast('Failed to save', true))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Save'; });
+}
 
-  function toggleCalled(pk, checkbox) {
-    const prev = checkbox.checked;
-    fetch(`/api/contact/${pk}/called/`, {
+// ── Called toggle ─────────────────────────────────────────────────────────────
+function toggleCalled(pk, checkbox) {
+  const prev = checkbox.checked;
+  fetch(`/api/contact/${pk}/called/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+    body: JSON.stringify({ called: prev }),
+  })
+  .then(r => r.json())
+  .then(res => { if (!res.ok) { checkbox.checked = !prev; showToast('Failed to update', true); } })
+  .catch(() => { checkbox.checked = !prev; showToast('Failed to update', true); });
+}
+
+// ── Call notes inline editor ──────────────────────────────────────────────────
+function openCallNotes(pk, el) {
+  const current = el.dataset.notes || '';
+  const input   = document.createElement('textarea');
+  input.value   = current;
+  input.rows    = 2;
+  input.style.cssText = 'width:100%;font-size:.75rem;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:4px 6px;resize:none;font-family:inherit';
+  el.replaceWith(input);
+  input.focus();
+
+  function save() {
+    const newVal = input.value.trim();
+    fetch(`/api/contact/${pk}/call-notes/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-      body: JSON.stringify({ called: prev }),
+      body: JSON.stringify({ call_notes: newVal }),
     })
     .then(r => r.json())
     .then(res => {
-      if (!res.ok) { checkbox.checked = !prev; showToast('Failed to update', true); }
+      if (res.ok) {
+        const span = document.createElement('span');
+        span.className     = 'call-notes-preview';
+        span.dataset.pk    = pk;
+        span.dataset.notes = newVal;
+        span.onclick = function() { openCallNotes(pk, this); };
+        span.style.cssText = `font-size:.75rem;cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:${newVal ? 'var(--text-secondary)' : 'var(--text-tertiary)'}`;
+        span.textContent   = newVal ? newVal.substring(0, 50) + (newVal.length > 50 ? '…' : '') : '+ Add note';
+        span.title         = newVal;
+        input.replaceWith(span);
+        if (newVal) showToast('Note saved');
+      } else {
+        showToast('Failed to save note', true);
+        input.focus();
+      }
     })
-    .catch(() => { checkbox.checked = !prev; showToast('Failed to update', true); });
+    .catch(() => { showToast('Failed to save note', true); input.focus(); });
   }
 
-  function openCallNotes(pk, el) {
-    const current = el.dataset.notes || '';
-    const input = document.createElement('textarea');
-    input.value = current;
-    input.rows  = 2;
-    input.style.cssText = 'width:100%;font-size:0.75rem;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:4px 6px;resize:none;font-family:inherit';
-    el.replaceWith(input);
-    input.focus();
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } });
+}
 
-    function save() {
-      const newVal = input.value.trim();
-      fetch(`/api/contact/${pk}/call-notes/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-        body: JSON.stringify({ call_notes: newVal }),
-      })
-      .then(r => r.json())
-      .then(res => {
-        if (res.ok) {
-          const span = document.createElement('span');
-          span.className = 'call-notes-preview';
-          span.dataset.pk    = pk;
-          span.dataset.notes = newVal;
-          span.onclick = function() { openCallNotes(pk, this); };
-          span.style.cssText = `font-size:0.75rem;cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:${newVal ? 'var(--text-secondary)' : 'var(--text-tertiary)'}`;
-          span.textContent = newVal ? newVal.substring(0, 50) + (newVal.length > 50 ? '…' : '') : '+ Add note';
-          span.title = newVal;
-          input.replaceWith(span);
-          if (newVal) showToast('Note saved');
-        } else {
-          showToast('Failed to save note', true);
-          input.focus();
-        }
-      })
-      .catch(() => { showToast('Failed to save note', true); input.focus(); });
-    }
-
-    input.addEventListener('blur', save);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } });
-  }
-
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddModal(); });
 </script>
 {% endblock %}
