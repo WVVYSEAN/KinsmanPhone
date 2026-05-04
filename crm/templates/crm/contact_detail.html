@@ -225,8 +225,12 @@
   .ldp .notes-rendered a { color: var(--indigo); text-decoration: underline; }
   .ldp .notes-rendered blockquote { border-left: 3px solid var(--indigo); padding-left: 12px; margin: 0 0 8px; color: var(--deep); font-style: italic; }
   .ldp .notes-rendered hr { border: none; border-top: 1px solid var(--border2); margin: 12px 0; }
-  .ldp .notes-textarea { width: 100%; font-size: 13px; background: var(--bg); color: var(--muted); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; resize: vertical; font-family: 'DM Mono', monospace; line-height: 1.6; box-sizing: border-box; outline: none; margin-top: 10px; }
+  .ldp .notes-textarea { width: 100%; font-size: 13px; background: var(--bg); color: var(--muted); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; resize: none; font-family: 'DM Mono', monospace; line-height: 1.6; box-sizing: border-box; outline: none; margin-top: 10px; flex: 1; min-height: 120px; }
   .ldp .notes-textarea:focus { border-color: var(--indigo); }
+  .ldp #notes-card { display: flex; flex-direction: column; }
+  .ldp #notes-card .notes-rendered { flex: 1; overflow-y: auto; min-height: 0; }
+  .ldp #notes-card #notes-empty { flex: 1; }
+  .ldp #notes-card #notes-edit { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
   /* Contact log */
   .ldp .log-layout { display: flex; flex-direction: column; gap: 20px; }
@@ -444,18 +448,6 @@
         </div>
 
         <div class="card">
-          <div class="card-title">Call Outcome</div>
-          <div class="outcome-note">After calling, log the result to train the model.</div>
-          <div class="outcome-grid">
-            <button class="outcome-btn" data-outcome="interested"      onclick="selectOutcome(this)">Interested</button>
-            <button class="outcome-btn" data-outcome="not_now"         onclick="selectOutcome(this)">Not Now</button>
-            <button class="outcome-btn" data-outcome="not_interested"  onclick="selectOutcome(this)">Not Interested</button>
-            <button class="outcome-btn" data-outcome="booked"          onclick="selectOutcome(this)">Discovery Booked</button>
-            <button class="outcome-btn" data-outcome="no_answer"       onclick="selectOutcome(this)">No Answer</button>
-          </div>
-        </div>
-
-        <div class="card">
           <div class="card-title">Lead Activity</div>
           <div class="stat-grid">
             <div class="stat-block">
@@ -483,7 +475,7 @@
           </div>
         </div>
 
-        <div class="card" id="notes-card">
+        <div class="card" id="notes-card" style="grid-row: span 2">
           <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
             Notes
             <button id="notes-edit-btn" onclick="editNotes()"
@@ -495,9 +487,9 @@
             No notes yet — <button onclick="editNotes()" style="color:var(--indigo);background:none;border:none;cursor:pointer;font-size:13px;padding:0">add one</button>.
           </div>
           <div id="notes-edit" style="display:none">
-            <textarea id="notes-textarea" class="notes-textarea" rows="6"
+            <textarea id="notes-textarea" class="notes-textarea"
                       placeholder="Markdown supported — **bold**, _italic_, ## headers, - lists…">{{ contact.notes|default:"" }}</textarea>
-            <div style="display:flex;gap:8px;margin-top:8px">
+            <div style="display:flex;gap:8px;margin-top:8px;flex-shrink:0">
               <button onclick="saveNotes()" id="notes-save-btn"
                       style="font-size:12px;font-weight:700;padding:6px 16px;background:var(--indigo);color:#fff;border:none;border-radius:8px;cursor:pointer">Save</button>
               <button onclick="cancelNotes()"
@@ -749,27 +741,6 @@ document.addEventListener('keydown', e => {
 });
 
 _renderNotes(_savedNotes);
-
-// Outcome selection
-function selectOutcome(btn) {
-  const prev = btn.classList.value.match(/active-\S+/);
-  document.querySelectorAll('.outcome-btn').forEach(b => b.className = 'outcome-btn');
-  const outcome = btn.dataset.outcome;
-  const isDeselect = prev && prev[0] === 'active-' + outcome;
-  const newVal = isDeselect ? '' : outcome;
-  fetch(`/api/contact/${CONTACT_PK}/outcome/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    body: JSON.stringify({ outcome: newVal }),
-  }).then(r => r.json()).then(res => {
-    if (res.call_outcome) btn.classList.add('active-' + res.call_outcome);
-    if (res.called_updated) _setCalledUI(true);
-    if (res.stage_changed && res.new_stage_label) {
-      updateStagePill(res.new_stage, res.new_stage_label);
-      showToast(`Stage → ${res.new_stage_label}`);
-    }
-  }).catch(() => showToast('Failed to update', true));
-}
 
 // Contact type selection
 function selectType(btn) {
