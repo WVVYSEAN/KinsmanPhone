@@ -209,10 +209,24 @@
   .ldp .stat-unit  { font-size: 10px; color: var(--deep); text-transform: uppercase; letter-spacing: .08em; }
   .ldp .stat-label { font-size: 11px; color: var(--faint); margin-top: 4px; }
 
-  /* Outreach */
-  .ldp .outreach-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .ldp .outreach-label { font-size: 14px; color: var(--muted); font-weight: 500; }
-  .ldp .outreach-sub { font-size: 12px; color: var(--deep); margin-top: 4px; line-height: 1.4; }
+  /* Notes (markdown) */
+  .ldp .notes-rendered { padding-top: 10px; }
+  .ldp .notes-rendered h1 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 8px; }
+  .ldp .notes-rendered h2 { font-size: 13px; font-weight: 700; color: var(--text); margin: 12px 0 6px; }
+  .ldp .notes-rendered h3 { font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 0 5px; }
+  .ldp .notes-rendered p  { font-size: 13px; color: var(--muted); line-height: 1.65; margin: 0 0 8px; }
+  .ldp .notes-rendered p:last-child { margin-bottom: 0; }
+  .ldp .notes-rendered strong { color: var(--text); }
+  .ldp .notes-rendered ul, .ldp .notes-rendered ol { margin: 0 0 8px 18px; padding: 0; }
+  .ldp .notes-rendered li { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 3px; }
+  .ldp .notes-rendered code { font-family: 'DM Mono', monospace; font-size: 11.5px; background: rgba(129,140,248,.1); color: var(--indigo); padding: 1px 5px; border-radius: 4px; }
+  .ldp .notes-rendered pre  { background: rgba(0,0,0,.25); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; margin: 0 0 10px; overflow-x: auto; }
+  .ldp .notes-rendered pre code { background: none; padding: 0; color: var(--text); }
+  .ldp .notes-rendered a { color: var(--indigo); text-decoration: underline; }
+  .ldp .notes-rendered blockquote { border-left: 3px solid var(--indigo); padding-left: 12px; margin: 0 0 8px; color: var(--deep); font-style: italic; }
+  .ldp .notes-rendered hr { border: none; border-top: 1px solid var(--border2); margin: 12px 0; }
+  .ldp .notes-textarea { width: 100%; font-size: 13px; background: var(--bg); color: var(--muted); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 12px; resize: vertical; font-family: 'DM Mono', monospace; line-height: 1.6; box-sizing: border-box; outline: none; margin-top: 10px; }
+  .ldp .notes-textarea:focus { border-color: var(--indigo); }
 
   /* Contact log */
   .ldp .log-layout { display: flex; flex-direction: column; gap: 20px; }
@@ -368,9 +382,6 @@
           {{ contact.location }}
         </div>
         {% endif %}
-        {% if contact.notes %}
-        <div class="org-description">{{ contact.notes }}</div>
-        {% endif %}
       </div>
     </div>
 
@@ -472,16 +483,26 @@
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">Email Outreach</div>
-          <div class="outreach-row">
-            <div>
-              <div class="outreach-label">Auto Email Outreach</div>
-              <div class="outreach-sub">Disabled by default — enable to send automated emails to this lead.</div>
+        <div class="card" id="notes-card">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+            Notes
+            <button id="notes-edit-btn" onclick="editNotes()"
+                    style="font-size:11px;font-weight:600;color:var(--indigo);background:none;border:none;cursor:pointer;padding:0;letter-spacing:.04em">Edit</button>
+          </div>
+          <div id="notes-view" class="notes-rendered"{% if not contact.notes %} style="display:none"{% endif %}></div>
+          <div id="notes-empty"{% if contact.notes %} style="display:none"{% endif %}
+               style="font-size:13px;color:var(--deep);padding-top:10px">
+            No notes yet — <button onclick="editNotes()" style="color:var(--indigo);background:none;border:none;cursor:pointer;font-size:13px;padding:0">add one</button>.
+          </div>
+          <div id="notes-edit" style="display:none">
+            <textarea id="notes-textarea" class="notes-textarea" rows="6"
+                      placeholder="Markdown supported — **bold**, _italic_, ## headers, - lists…">{{ contact.notes|default:"" }}</textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button onclick="saveNotes()" id="notes-save-btn"
+                      style="font-size:12px;font-weight:700;padding:6px 16px;background:var(--indigo);color:#fff;border:none;border-radius:8px;cursor:pointer">Save</button>
+              <button onclick="cancelNotes()"
+                      style="font-size:12px;font-weight:600;padding:6px 14px;background:var(--surface);color:var(--deep);border:1px solid var(--border2);border-radius:8px;cursor:pointer">Cancel</button>
             </div>
-            <button class="toggle{% if contact.email_outreach_enabled %} on{% endif %}" id="emailToggle" onclick="toggleEmail()">
-              <span class="toggle-knob"></span>
-            </button>
           </div>
         </div>
 
@@ -582,6 +603,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 <script>
 const CONTACT_PK = {{ contact.pk }};
 const CSRF = getCsrf();
@@ -671,14 +693,62 @@ function toggleDrip() {
   }).catch(() => showToast('Failed to update', true));
 }
 
-// Email outreach toggle
-function toggleEmail() {
-  fetch(`/api/contact/${CONTACT_PK}/email-outreach/`, {
-    method: 'POST', headers: { 'X-CSRFToken': CSRF },
-  }).then(r => r.json()).then(res => {
-    document.getElementById('emailToggle').classList.toggle('on', res.email_outreach_enabled);
-  }).catch(() => showToast('Failed to update', true));
+// Notes (markdown editor)
+let _savedNotes = `{{ contact.notes|escapejs }}`;
+
+function _renderNotes(md) {
+  const view  = document.getElementById('notes-view');
+  const empty = document.getElementById('notes-empty');
+  if (md && md.trim()) {
+    view.innerHTML = marked.parse(md, { breaks: true });
+    view.style.display  = '';
+    empty.style.display = 'none';
+  } else {
+    view.innerHTML      = '';
+    view.style.display  = 'none';
+    empty.style.display = '';
+  }
 }
+
+function editNotes() {
+  document.getElementById('notes-view').style.display  = 'none';
+  document.getElementById('notes-empty').style.display = 'none';
+  document.getElementById('notes-edit').style.display  = '';
+  document.getElementById('notes-edit-btn').style.display = 'none';
+  document.getElementById('notes-textarea').focus();
+}
+
+function cancelNotes() {
+  document.getElementById('notes-textarea').value      = _savedNotes;
+  document.getElementById('notes-edit').style.display  = 'none';
+  document.getElementById('notes-edit-btn').style.display = '';
+  _renderNotes(_savedNotes);
+}
+
+function saveNotes() {
+  const md  = document.getElementById('notes-textarea').value;
+  const btn = document.getElementById('notes-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  fetch(`/api/update/contact/${CONTACT_PK}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({ notes: md }),
+  }).then(r => r.json()).then(res => {
+    if (!res.ok) { showToast('Failed to save', true); return; }
+    _savedNotes = md;
+    document.getElementById('notes-edit').style.display  = 'none';
+    document.getElementById('notes-edit-btn').style.display = '';
+    _renderNotes(md);
+    showToast('Notes saved');
+  }).catch(() => showToast('Failed to save', true))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Save'; });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('notes-edit').style.display !== 'none') cancelNotes();
+});
+
+_renderNotes(_savedNotes);
 
 // Outcome selection
 function selectOutcome(btn) {
