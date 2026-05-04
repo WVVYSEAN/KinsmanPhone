@@ -302,6 +302,7 @@ class Contact(models.Model):
     ownership_structure  = models.CharField(max_length=200, blank=True, default='')
     reason_for_sale      = models.CharField(max_length=200, blank=True, default='')
     causality_notes      = models.TextField(blank=True, default='')
+    call_notes           = models.TextField(blank=True, default='')
     created_at         = models.DateTimeField(auto_now_add=True)
     updated_at         = models.DateTimeField(auto_now=True)
     touchpoints        = GenericRelation('TouchPoint')

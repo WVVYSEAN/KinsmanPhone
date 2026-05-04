@@ -86,6 +86,7 @@ urlpatterns = [
     path('api/contact/<int:pk>/outcome/',              views.contact_set_outcome,           name='contact_set_outcome'),
     path('api/contact/<int:pk>/email-outreach/',       views.contact_toggle_email_outreach, name='contact_toggle_email_outreach'),
     path('api/contact/<int:pk>/financials/',           views.contact_save_financials,       name='contact_save_financials'),
+    path('api/contact/<int:pk>/call-notes/',          views.contact_save_call_notes,       name='contact_save_call_notes'),
 
     # Cold lead list (enhanced search/filter/sort) — must be before wildcard
     path('contacts/cold_lead/',                        views.cold_lead_list,                name='cold_lead_list'),

@@ -609,6 +609,11 @@ def dashboard(request, workspace, membership):
         touchpoint_type='meeting'
     ).count()
 
+    calls_made    = all_contacts.filter(called=True).count()
+    calls_pending = all_contacts.filter(called=False).exclude(
+        stage__in=['closed_won', 'closed_lost']
+    ).count()
+
     from .models import INDUSTRY_LIST
     email_templates_json = json.dumps(
         list(workspace.email_templates.values('id', 'name', 'is_default'))
@@ -623,6 +628,8 @@ def dashboard(request, workspace, membership):
         'replies_received':   replies_received,
         'reply_rate':         reply_rate,
         'ai_replies_sent':       ai_replies_sent,
+        'calls_made':            calls_made,
+        'calls_pending':         calls_pending,
         'pending_drafts_count':  pending_drafts_count,
         'meetings_booked':    meetings_booked,
         'workspace':       workspace,
@@ -2781,6 +2788,16 @@ def contact_save_financials(request, pk, workspace, membership):
         if f in data:
             setattr(contact, f, data[f])
     contact.save(update_fields=fields)
+    return JsonResponse({'ok': True})
+
+
+@_api_workspace_required
+@require_POST
+def contact_save_call_notes(request, pk, workspace, membership):
+    contact = get_object_or_404(Contact, pk=pk, workspace=workspace)
+    data = json.loads(request.body)
+    contact.call_notes = data.get('call_notes', '').strip()
+    contact.save(update_fields=['call_notes'])
     return JsonResponse({'ok': True})
 
 

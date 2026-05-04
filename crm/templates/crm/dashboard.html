@@ -1,6 +1,6 @@
 {% extends 'crm/base.html' %}
 
-{% block title %}WVVYReach Dashboard{% endblock %}
+{% block title %}Kinsman Dashboard{% endblock %}
 
 {% block content %}
 <main class="max-w-7xl mx-auto px-8 py-8 space-y-6">
@@ -8,7 +8,16 @@
   <!-- ═══════════════════════ CONTACTS PANE ═══════════════════════ -->
   <div id="pane-contacts">
 
-    <!-- Outreach stats row -->
+    <!-- Page header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold" style="color:var(--text-primary)">Pipeline Overview</h1>
+        <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">{{ contact_total }} total contact{{ contact_total|pluralize }} across all stages</p>
+      </div>
+      <button onclick="openAddModal('contact','cold_lead')" class="wvvy-btn-primary">+ Add Lead</button>
+    </div>
+
+    <!-- Outreach stats row (5 cards) -->
     <div class="grid grid-cols-5 gap-4 mb-4">
       <div class="wvvy-stat-card">
         <p class="wvvy-section-label">Leads Reached</p>
@@ -23,8 +32,9 @@
         <p class="text-3xl font-bold mt-1" style="color:var(--cyan)">{{ reply_rate }}<span class="text-lg font-normal" style="color:var(--text-tertiary)">%</span></p>
       </div>
       <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">AI Replies Sent</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--violet)">{{ ai_replies_sent }}</p>
+        <p class="wvvy-section-label">Calls Made</p>
+        <p class="text-3xl font-bold mt-1" style="color:var(--cyan)">{{ calls_made }}</p>
+        <p class="text-xs mt-1" style="color:var(--text-tertiary)">logged by team</p>
       </div>
       <div class="wvvy-stat-card">
         <p class="wvvy-section-label">Meetings Booked</p>
@@ -32,15 +42,16 @@
       </div>
     </div>
 
-    <!-- Pipeline stats row -->
+    <!-- Pipeline stats row (3 cards) -->
     <div class="grid grid-cols-3 gap-4 mb-6">
       <div class="wvvy-stat-card">
         <p class="wvvy-section-label">Total Contacts</p>
         <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ contact_total }}</p>
       </div>
       <div class="wvvy-stat-card">
-        <p class="wvvy-section-label">Active Pipeline</p>
-        <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ contact_active }}</p>
+        <p class="wvvy-section-label">Calls Pending</p>
+        <p class="text-3xl font-bold mt-1" style="color:var(--text-primary)">{{ calls_pending }}</p>
+        <p class="text-xs mt-1" style="color:var(--text-tertiary)">not yet called</p>
       </div>
       <div class="wvvy-stat-card">
         <p class="wvvy-section-label">Closed Won</p>
@@ -68,12 +79,15 @@
         <div class="overflow-x-auto">
           <table id="tbl-c-{{ stage.key }}" class="w-full text-sm whitespace-nowrap"
                  data-init-table data-filter-bar="fb-c-{{ stage.key }}"
-                 data-dropdown-cols="2,4" data-dropdown-labels="Industry,Heat">
+                 data-dropdown-cols="1,7" data-dropdown-labels="Heat,Industry">
             <thead>
               <tr class="text-left" style="background:var(--bg-card);border-bottom:1px solid var(--border-subtle)">
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Name</th>
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Heat</th>
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Company</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Phone</th>
+                <th class="px-4 py-2.5 wvvy-section-label text-center" style="font-size:0.6875rem">Called</th>
+                <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Call Notes</th>
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Location</th>
                 <th class="px-4 py-2.5 wvvy-section-label" style="font-size:0.6875rem">Industry</th>
               </tr>
@@ -87,6 +101,33 @@
                 </td>
                 <td class="px-4 py-2.5"><span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold {{ c.heat_badge }}">{{ c.get_heat_display }}</span></td>
                 <td class="px-4 py-2.5" style="color:var(--text-secondary)">{{ c.company|default:"—" }}</td>
+                <td class="px-4 py-2.5">
+                  {% if c.phone %}
+                  <a href="tel:{{ c.phone }}" style="color:var(--cyan);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:0.75rem"
+                     onmouseenter="this.style.opacity='0.7'" onmouseleave="this.style.opacity='1'">{{ c.phone }}</a>
+                  {% else %}
+                  <span style="color:var(--text-tertiary)">—</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                  <input type="checkbox"
+                         id="called-{{ c.pk }}"
+                         {% if c.called %}checked{% endif %}
+                         onchange="toggleCalled({{ c.pk }}, this)"
+                         style="width:15px;height:15px;accent-color:#00ffcc;cursor:pointer">
+                </td>
+                <td class="px-4 py-2.5" style="max-width:180px">
+                  {% if c.call_notes %}
+                  <span class="call-notes-preview" data-pk="{{ c.pk }}" data-notes="{{ c.call_notes|escapejs }}"
+                        style="font-size:0.75rem;color:var(--text-secondary);cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                        onclick="openCallNotes({{ c.pk }}, this)"
+                        title="{{ c.call_notes }}">{{ c.call_notes|truncatechars:50 }}</span>
+                  {% else %}
+                  <span class="call-notes-preview" data-pk="{{ c.pk }}" data-notes=""
+                        style="font-size:0.75rem;color:var(--text-tertiary);cursor:pointer"
+                        onclick="openCallNotes({{ c.pk }}, this)">+ Add note</span>
+                  {% endif %}
+                </td>
                 <td class="px-4 py-2.5" style="color:var(--text-tertiary)">{{ c.location|default:"—" }}</td>
                 <td class="px-4 py-2.5" style="color:var(--text-tertiary)">{{ c.industry|default:"—" }}</td>
               </tr>
@@ -124,38 +165,35 @@
       <div id="fields-contact" class="hidden grid grid-cols-2 gap-4">
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">First Name <span class="text-red-400">*</span></label>
-          <input name="first_name" type="text" placeholder="Jane"
-                 class="wvvy-input"/>
+          <input name="first_name" type="text" placeholder="Jane" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Last Name</label>
-          <input name="last_name" type="text" placeholder="Smith"
-                 class="wvvy-input"/>
+          <input name="last_name" type="text" placeholder="Smith" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Email</label>
-          <input name="email" type="email" placeholder="email@company.com"
-                 class="wvvy-input"/>
+          <input name="email" type="email" placeholder="email@company.com" class="wvvy-input"/>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Phone</label>
+          <input name="phone" type="tel" placeholder="+1 (555) 000-0000" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Company</label>
-          <input name="company" type="text" placeholder="Company name"
-                 class="wvvy-input"/>
+          <input name="company" type="text" placeholder="Company name" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Role / Title</label>
-          <input name="role" type="text" placeholder="CMO, VP Marketing…"
-                 class="wvvy-input"/>
+          <input name="role" type="text" placeholder="CMO, VP Marketing…" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Location</label>
-          <input name="location" type="text" placeholder="New York, USA"
-                 class="wvvy-input"/>
+          <input name="location" type="text" placeholder="New York, USA" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">LinkedIn URL</label>
-          <input name="linkedin" type="url" placeholder="https://linkedin.com/in/…"
-                 class="wvvy-input"/>
+          <input name="linkedin" type="url" placeholder="https://linkedin.com/in/…" class="wvvy-input"/>
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Industry</label>
@@ -179,13 +217,11 @@
         </div>
         <div>
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Relationship Owner</label>
-          <input name="relationship_owner" type="text" placeholder="Your name"
-                 class="wvvy-input"/>
+          <input name="relationship_owner" type="text" placeholder="Your name" class="wvvy-input"/>
         </div>
         <div class="col-span-2">
           <label class="block text-xs font-semibold mb-1.5" style="color:var(--text-tertiary)">Notes</label>
-          <textarea name="notes" rows="2" placeholder="Any additional context…"
-                    class="wvvy-input resize-none"></textarea>
+          <textarea name="notes" rows="2" placeholder="Any additional context…" class="wvvy-input resize-none"></textarea>
         </div>
         <!-- Email template selector — shown only for cold_lead stage -->
         <div class="col-span-2" id="contact-template-row" style="display:none">
@@ -218,20 +254,17 @@
     document.getElementById('add-submit').textContent  = 'Add Contact';
     document.getElementById('fields-contact').classList.remove('hidden');
 
-    // Pre-select the stage
     const sel = document.getElementById('contact-stage-select');
     if (sel && stage) {
       const opt = sel.querySelector(`option[value="${stage}"]`);
       if (opt) opt.selected = true;
     }
 
-    // Show template selector only for cold_lead contacts
     const tmplRow = document.getElementById('contact-template-row');
     const isColdLead = stage === 'cold_lead';
     tmplRow.style.display = isColdLead ? '' : 'none';
     if (isColdLead) _populateTemplateSelect();
 
-    // Also show/hide when stage changes
     const stageSelect = document.getElementById('contact-stage-select');
     if (stageSelect) {
       stageSelect.onchange = function() {
@@ -266,7 +299,6 @@
     const btn  = document.getElementById('add-submit');
     const data = Object.fromEntries(new FormData(document.getElementById('add-form')).entries());
 
-    // Combine first/last name into the single `name` field the API expects
     if ('first_name' in data || 'last_name' in data) {
       data.name = [data.first_name, data.last_name].filter(Boolean).join(' ').trim();
       delete data.first_name;
@@ -291,6 +323,61 @@
       })
       .catch(() => showToast('Failed to save', true))
       .finally(() => { btn.disabled = false; btn.textContent = 'Save'; });
+  }
+
+  function toggleCalled(pk, checkbox) {
+    const prev = checkbox.checked;
+    fetch(`/api/contact/${pk}/called/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ called: prev }),
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (!res.ok) { checkbox.checked = !prev; showToast('Failed to update', true); }
+    })
+    .catch(() => { checkbox.checked = !prev; showToast('Failed to update', true); });
+  }
+
+  function openCallNotes(pk, el) {
+    const current = el.dataset.notes || '';
+    const input = document.createElement('textarea');
+    input.value = current;
+    input.rows  = 2;
+    input.style.cssText = 'width:100%;font-size:0.75rem;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:4px 6px;resize:none;font-family:inherit';
+    el.replaceWith(input);
+    input.focus();
+
+    function save() {
+      const newVal = input.value.trim();
+      fetch(`/api/contact/${pk}/call-notes/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ call_notes: newVal }),
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok) {
+          const span = document.createElement('span');
+          span.className = 'call-notes-preview';
+          span.dataset.pk    = pk;
+          span.dataset.notes = newVal;
+          span.onclick = function() { openCallNotes(pk, this); };
+          span.style.cssText = `font-size:0.75rem;cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;color:${newVal ? 'var(--text-secondary)' : 'var(--text-tertiary)'}`;
+          span.textContent = newVal ? newVal.substring(0, 50) + (newVal.length > 50 ? '…' : '') : '+ Add note';
+          span.title = newVal;
+          input.replaceWith(span);
+          if (newVal) showToast('Note saved');
+        } else {
+          showToast('Failed to save note', true);
+          input.focus();
+        }
+      })
+      .catch(() => { showToast('Failed to save note', true); input.focus(); });
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } });
   }
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAddModal(); });
