@@ -35,7 +35,7 @@
     {% block header_left %}
     <div class="flex items-center gap-3">
       {% if active_workspace and active_workspace.logo %}
-      <img src="{{ active_workspace.logo.url }}" alt="{{ active_workspace.name }}" class="h-7 w-auto object-contain rounded">
+      <img src="{{ active_workspace.logo }}" alt="{{ active_workspace.name }}" class="h-7 w-auto object-contain rounded">
       {% else %}
       <span class="text-xl font-bold tracking-tight"><span class="wvvy-logo-wvvy">WVVY</span><span class="wvvy-logo-reach">Reach</span></span>
       {% endif %}

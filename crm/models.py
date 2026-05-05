@@ -57,7 +57,7 @@ HEAT_BADGE = {k: badge for k, _, badge in HEAT_META}
 
 class Workspace(models.Model):
     name       = models.CharField(max_length=200)
-    logo       = models.ImageField(upload_to='workspace_logos/', blank=True, null=True)
+    logo       = models.TextField(blank=True, default='')
     owner      = models.ForeignKey(
                      'auth.User', on_delete=models.PROTECT,
                      related_name='owned_workspaces')

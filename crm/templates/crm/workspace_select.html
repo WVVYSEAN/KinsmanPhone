@@ -24,7 +24,7 @@
               class="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-600 rounded-xl p-5 transition group">
         <div class="flex items-center gap-3 mb-3">
           {% if ws.logo %}
-          <img src="{{ ws.logo.url }}" alt="{{ ws.name }}" class="w-10 h-10 rounded-lg object-cover">
+          <img src="{{ ws.logo }}" alt="{{ ws.name }}" class="w-10 h-10 rounded-lg object-cover">
           {% else %}
           <div class="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 text-lg font-bold">
             {{ ws.name|first|upper }}

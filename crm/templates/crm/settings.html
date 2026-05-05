@@ -648,7 +648,7 @@
         <div class="px-6 py-5 flex items-center gap-5">
           <div id="logo-preview" class="w-14 h-14 rounded-xl border border-zinc-700 bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0">
             {% if workspace.logo %}
-            <img src="{{ workspace.logo.url }}" alt="{{ workspace.name }}" class="w-full h-full object-contain">
+            <img src="{{ workspace.logo }}" alt="{{ workspace.name }}" class="w-full h-full object-contain">
             {% else %}
             <span class="text-zinc-500 text-xl font-bold">{{ workspace.name|first|upper }}</span>
             {% endif %}

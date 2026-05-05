@@ -1,8 +1,10 @@
+import base64
 import json
 import logging
 import requests
 from datetime import date
 from functools import wraps
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -315,6 +317,18 @@ def _add_workspace_members(ws, emails, role):
 
 
 @login_required
+def _logo_to_dataurl(file_obj, max_px=256):
+    from PIL import Image
+    img = Image.open(file_obj)
+    img.thumbnail((max_px, max_px), Image.LANCZOS)
+    if img.mode not in ('RGB', 'RGBA'):
+        img = img.convert('RGBA')
+    buf = BytesIO()
+    img.save(buf, format='PNG', optimize=True)
+    b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+    return f'data:image/png;base64,{b64}'
+
+
 def workspace_create(request):
     if request.user.email != MASTER_EMAIL:
         raise Http404
@@ -338,7 +352,10 @@ def workspace_create(request):
         )
         InvitedEmail.objects.get_or_create(email=owner_email)
 
-        ws = Workspace.objects.create(name=name, owner=owner, logo=logo or None)
+        ws = Workspace.objects.create(
+            name=name, owner=owner,
+            logo=_logo_to_dataurl(logo) if logo else '',
+        )
         WorkspaceMembership.objects.create(workspace=ws, user=owner, role='owner')
 
         # Always add master as owner-level member too
@@ -362,15 +379,14 @@ def workspace_create(request):
 def workspace_update_logo(request, workspace, membership):
     if not _is_admin(request, membership):
         return JsonResponse({'error': 'Insufficient permissions'}, status=403)
-    logo = request.FILES.get('logo')
-    if not logo:
+    logo_file = request.FILES.get('logo')
+    if not logo_file:
         return JsonResponse({'error': 'No file provided'}, status=400)
     try:
-        if workspace.logo:
-            workspace.logo.delete(save=False)
-        workspace.logo = logo
+        data_url = _logo_to_dataurl(logo_file)
+        workspace.logo = data_url
         workspace.save(update_fields=['logo'])
-        return JsonResponse({'ok': True, 'logo_url': workspace.logo.url})
+        return JsonResponse({'ok': True, 'logo_url': data_url})
     except Exception:
         logger.exception('workspace_update_logo failed')
         return JsonResponse({'error': 'Failed to update logo'}, status=500)
