@@ -13,8 +13,8 @@
     --border2:   #2a2a3a;
     --text:      #e2e8f0;
     --muted:     #94a3b8;
-    --faint:     #6b7280;
-    --deep:      #4a4a6a;
+    --faint:     #8b909e;  /* was #6b7280 (3.8:1 on surface) → 5.8:1 AA */
+    --deep:      #7a7e9e;  /* was #4a4a6a (2.5:1 on surface) → 4.7:1 AA */
     --green:     #22c55e;
     --green-bg:  #0f2a1a;
     --green-bd:  #22c55e33;
@@ -181,13 +181,13 @@
     border-bottom: 1px solid #1a1a2a; padding: 10px 0;
   }
   .ldp .field-row:last-child { border-bottom: none; }
-  .ldp .field-label { font-size: 12px; color: #4a5568; font-weight: 500; }
+  .ldp .field-label { font-size: 12px; color: var(--faint); font-weight: 500; }
   .ldp .field-value { font-size: 13px; color: var(--muted); }
   .ldp .field-link { font-size: 13px; color: var(--indigo); text-decoration: none; }
   .ldp .field-link:hover { text-decoration: underline; }
 
   /* Outcome */
-  .ldp .outcome-note { font-size: 12px; color: #4a5568; margin-bottom: 14px; line-height: 1.5; }
+  .ldp .outcome-note { font-size: 12px; color: var(--faint); margin-bottom: 14px; line-height: 1.5; }
   .ldp .outcome-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .ldp .outcome-btn {
     padding: 6px 14px; border-radius: 8px; cursor: pointer;
@@ -630,7 +630,7 @@ function updateStagePill(newStage, newLabel) {
 
 const outcomeColors = {
   interested: '#22c55e', not_now: '#f5a623',
-  not_interested: '#ef4444', booked: '#818cf8', no_answer: '#6b7280'
+  not_interested: '#ef4444', booked: '#818cf8', no_answer: '#8b909e'
 };
 const outcomeLabels = {
   interested: 'Interested', not_now: 'Not Now',

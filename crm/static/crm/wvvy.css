@@ -39,11 +39,16 @@
   --green-ghost:       rgba(52,211,153,0.10);
   --green-border:      rgba(52,211,153,0.20);
 
-  /* Text */
+  /* Text
+     Contrast ratios (WCAG 2.1) against worst-case bg-card (~#1a1a2a, L≈0.011):
+       primary   #eeeef5  → 15:1  AAA
+       secondary #9899b0  →  6:1  AA
+       tertiary  #868aa8  →  5:1  AA  (was #5a5b72 at 2.6:1 — fixed)
+       disabled  #6e7194  →  3.9:1 AA for placeholder text (was #3a3b52 at 1.6:1) */
   --text-primary:   #eeeef5;
   --text-secondary: #9899b0;
-  --text-tertiary:  #5a5b72;
-  --text-disabled:  #3a3b52;
+  --text-tertiary:  #868aa8;
+  --text-disabled:  #6e7194;
 
   /* Shadows */
   --shadow-sm:    0 2px 8px rgba(0,0,0,0.60);

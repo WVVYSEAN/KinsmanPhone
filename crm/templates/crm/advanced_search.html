@@ -37,28 +37,28 @@
 
         <!-- First Name -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">First Name</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">First Name</label>
           <input name="firstName" type="text" placeholder="e.g. John"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
 
         <!-- Last Name -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Last Name</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Last Name</label>
           <input name="lastName" type="text" placeholder="e.g. Smith"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
 
         <!-- Job Title -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Job Title <span class="text-zinc-600">(comma-separated)</span></label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Job Title <span class="text-zinc-400">(comma-separated)</span></label>
           <input name="personTitle" type="text" placeholder="CMO, VP Marketing, Head of Growth"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
 
         <!-- Person Country -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Person Country <span class="text-zinc-600">(comma-separated)</span></label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Person Country <span class="text-zinc-400">(comma-separated)</span></label>
           <input name="personCountry" type="text" placeholder="United States, United Kingdom"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
@@ -66,7 +66,7 @@
 
         <!-- Email Status -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Email Status</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Email Status</label>
           <select name="contactEmailStatus"
                   class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
             {% for val, label in email_status_options %}
@@ -77,14 +77,14 @@
 
         <!-- Company Domain -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Company Domain <span class="text-zinc-600">(comma-separated)</span></label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Company Domain <span class="text-zinc-400">(comma-separated)</span></label>
           <input name="companyDomain" type="text" placeholder="stripe.com, vercel.com"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
 
         <!-- Company Country -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Company Country <span class="text-zinc-600">(comma-separated)</span></label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Company Country <span class="text-zinc-400">(comma-separated)</span></label>
           <input name="companyCountry" type="text" placeholder="United States, Canada"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
@@ -92,14 +92,14 @@
 
         <!-- Industry Keywords -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Industry <span class="text-zinc-600">(comma-separated keywords)</span></label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Industry <span class="text-zinc-400">(comma-separated keywords)</span></label>
           <input name="industryKeywords" type="text" placeholder="SaaS, Fintech, Healthcare, AI"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
 
         <!-- Number of Leads -->
         <div>
-          <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Number of Leads <span class="text-zinc-600">(100–30000)</span></label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Number of Leads <span class="text-zinc-400">(100–30000)</span></label>
           <input name="totalResults" type="number" value="1000" min="100" max="30000"
                  class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
         </div>
@@ -117,7 +117,7 @@
 
         <!-- Seniority — full row -->
         <div class="sm:col-span-2 lg:col-span-3">
-          <label class="block text-xs font-semibold text-zinc-500 mb-2">Seniority</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-2">Seniority</label>
           <div class="flex flex-wrap gap-2">
             {% for val, label in seniority_options %}
             <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
@@ -130,7 +130,7 @@
 
         <!-- Department / Function — full row -->
         <div class="sm:col-span-2 lg:col-span-3">
-          <label class="block text-xs font-semibold text-zinc-500 mb-2">Department / Function</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-2">Department / Function</label>
           <div class="flex flex-wrap gap-2">
             {% for val, label in functional_options %}
             <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
@@ -143,7 +143,7 @@
 
         <!-- Company Size — full row -->
         <div class="sm:col-span-2 lg:col-span-3">
-          <label class="block text-xs font-semibold text-zinc-500 mb-2">Company Size (employees)</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-2">Company Size (employees)</label>
           <div class="flex flex-wrap gap-2">
             {% for val in company_size_options %}
             <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
@@ -156,7 +156,7 @@
 
         <!-- Revenue — full row -->
         <div class="sm:col-span-2 lg:col-span-3">
-          <label class="block text-xs font-semibold text-zinc-500 mb-2">Revenue</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-2">Revenue</label>
           <div class="flex flex-wrap gap-2">
             {% for val in revenue_options %}
             <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
@@ -169,7 +169,7 @@
 
         <!-- Business Model — full row -->
         <div class="sm:col-span-2 lg:col-span-3">
-          <label class="block text-xs font-semibold text-zinc-500 mb-2">Business Model</label>
+          <label class="block text-xs font-semibold text-zinc-400 mb-2">Business Model</label>
           <div class="flex flex-wrap gap-2">
             {% for val in business_model_options %}
             <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 cursor-pointer hover:border-zinc-500 transition has-[:checked]:border-white has-[:checked]:bg-zinc-700">
@@ -203,7 +203,7 @@
         <p class="text-sm font-bold text-zinc-300 mb-4">Schedule</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
-            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Frequency</label>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Frequency</label>
             <select id="freq-select" onchange="onFreqChange()"
                     class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
               <option value="daily">Daily (9am)</option>
@@ -213,7 +213,7 @@
             </select>
           </div>
           <div id="dow-wrap">
-            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Day of week</label>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Day of week</label>
             <select id="dow-select" onchange="buildCron()"
                     class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
               <option value="1">Monday</option>
@@ -224,18 +224,18 @@
             </select>
           </div>
           <div id="dom-wrap" class="hidden">
-            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Day of month</label>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Day of month</label>
             <input id="dom-input" type="number" value="1" min="1" max="28" onchange="buildCron()"
                    class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white outline-none focus:ring-2 focus:ring-zinc-600">
           </div>
           <div id="custom-wrap" class="hidden">
-            <label class="block text-xs font-semibold text-zinc-500 mb-1.5">Cron expression</label>
+            <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Cron expression</label>
             <input id="custom-cron" type="text" placeholder="0 9 * * 1" onchange="buildCron()"
                    class="w-full text-sm border border-zinc-700 rounded-lg px-3 py-2 bg-zinc-800 text-white placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-600">
           </div>
         </div>
         <input type="hidden" name="cron_expression" id="cron-expression-input" value="0 9 * * 1">
-        <p id="cron-preview" class="text-xs text-zinc-500 mb-4">Runs every Monday at 9:00 AM</p>
+        <p id="cron-preview" class="text-xs text-zinc-400 mb-4">Runs every Monday at 9:00 AM</p>
         <button type="button" onclick="submitAction('save_schedule')"
                 class="bg-white hover:bg-zinc-100 text-black text-sm font-semibold px-5 py-2 rounded-lg transition">
           Save Schedule
@@ -254,12 +254,12 @@
       <table class="w-full text-sm whitespace-nowrap">
         <thead>
           <tr class="border-b border-zinc-800 text-left">
-            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
-            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Filters</th>
-            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Schedule</th>
-            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Last Run</th>
-            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Leads</th>
-            <th class="px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wide">Actions</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Name</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Filters</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Schedule</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Last Run</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Leads</th>
+            <th class="px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-zinc-800">
@@ -275,7 +275,7 @@
                   <code class="text-xs text-zinc-400">{{ search.schedule.cron_expression }}</code>
                 </span>
               {% else %}
-                <span class="text-zinc-600">One-time</span>
+                <span class="text-zinc-400">One-time</span>
               {% endif %}
             </td>
             <td class="px-5 py-3" id="run-status-{{ search.pk }}">
@@ -284,8 +284,8 @@
                   {% if last_run.status == 'SUCCEEDED' %}bg-emerald-900/50 text-emerald-400
                   {% elif last_run.status == 'FAILED' %}bg-red-900/50 text-red-400
                   {% elif last_run.status == 'RUNNING' %}bg-blue-900/50 text-blue-400
-                  {% elif last_run.status == 'ABORTED' %}bg-zinc-800 text-zinc-500
-                  {% else %}bg-zinc-800 text-zinc-500{% endif %}"
+                  {% elif last_run.status == 'ABORTED' %}bg-zinc-800 text-zinc-400
+                  {% else %}bg-zinc-800 text-zinc-400{% endif %}"
                   data-run-id="{{ last_run.apify_run_id }}"
                   data-status="{{ last_run.status }}"
                   {% if last_run.error_message %}title="{{ last_run.error_message }}"{% endif %}>
@@ -301,7 +301,7 @@
                 <div class="flex items-center gap-1.5 mt-1">
                   <p class="text-xs text-red-400 max-w-xs truncate">{{ last_run.error_message|truncatechars:60 }}</p>
                   <button type="button" onclick="copyError(this, '{{ last_run.error_message|escapejs }}')"
-                    class="shrink-0 text-zinc-500 hover:text-white transition" title="Copy full error">
+                    class="shrink-0 text-zinc-400 hover:text-white transition" title="Copy full error">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -310,14 +310,14 @@
                 </div>
                 {% endif %}
               {% else %}
-                <span class="text-zinc-600 text-xs">Never</span>
+                <span class="text-zinc-400 text-xs">Never</span>
               {% endif %}
             </td>
             <td class="px-5 py-3 text-zinc-400" id="run-leads-{{ search.pk }}">
               {% if last_run and last_run.leads_imported %}
                 {{ last_run.leads_imported }}
               {% else %}
-                <span class="text-zinc-600">—</span>
+                <span class="text-zinc-400">—</span>
               {% endif %}
             </td>
             <td class="px-5 py-3">
@@ -334,7 +334,7 @@
                 </button>
                 {% endif %}
                 <button onclick="deleteSearch({{ search.pk }})"
-                        class="text-xs text-zinc-600 hover:text-red-400 font-medium hover:underline transition">
+                        class="text-xs text-zinc-400 hover:text-red-400 font-medium hover:underline transition">
                   Delete
                 </button>
               </div>
@@ -493,16 +493,16 @@
       SUCCEEDED: 'bg-emerald-900/50 text-emerald-400',
       FAILED:    'bg-red-900/50 text-red-400',
       RUNNING:   'bg-blue-900/50 text-blue-400',
-      ABORTED:   'bg-zinc-800 text-zinc-500',
+      ABORTED:   'bg-zinc-800 text-zinc-400',
     };
-    const cls   = STATUS_STYLE[data.status] || 'bg-zinc-800 text-zinc-500';
+    const cls   = STATUS_STYLE[data.status] || 'bg-zinc-800 text-zinc-400';
     const label = data.status.charAt(0) + data.status.slice(1).toLowerCase();
     let html = `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold ${cls}">${label}</span>`;
     if (data.error_message) {
       const esc = data.error_message.replace(/'/g, "\\'");
       html += `<div class="flex items-center gap-1.5 mt-1">
         <p class="text-xs text-red-400 max-w-xs truncate">${data.error_message.substring(0, 60)}</p>
-        <button type="button" onclick="copyError(this,'${esc}')" class="shrink-0 text-zinc-500 hover:text-white transition" title="Copy full error">
+        <button type="button" onclick="copyError(this,'${esc}')" class="shrink-0 text-zinc-400 hover:text-white transition" title="Copy full error">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -565,12 +565,12 @@
       <div class="min-w-40 space-y-1">
         <div class="flex items-center justify-between gap-2">
           <span class="text-xs text-zinc-400 truncate">${label}</span>
-          <span class="text-xs text-zinc-500 shrink-0">${pct}%</span>
+          <span class="text-xs text-zinc-400 shrink-0">${pct}%</span>
         </div>
         <div class="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
           <div class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width:${pct}%"></div>
         </div>
-        <div class="flex gap-2 text-xs text-zinc-600">
+        <div class="flex gap-2 text-xs text-zinc-400">
           <span>Phase 1: import</span>
           <span class="${pct >= 50 ? 'text-blue-400' : ''}">Phase 2: email</span>
         </div>
