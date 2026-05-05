@@ -5,6 +5,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}WVVYReach{% endblock %}</title>
+
+  <!-- Favicons & PWA -->
+  <link rel="icon" type="image/x-icon"       href="{% static 'crm/favicon.ico' %}">
+  <link rel="icon" type="image/png" sizes="16x16"  href="{% static 'crm/favicon-16x16.png' %}">
+  <link rel="icon" type="image/png" sizes="32x32"  href="{% static 'crm/favicon-32x32.png' %}">
+  <link rel="icon" type="image/png" sizes="96x96"  href="{% static 'crm/favicon-96x96.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180"     href="{% static 'crm/apple-touch-icon.png' %}">
+  <link rel="manifest"                             href="{% static 'crm/site.webmanifest' %}">
+  <meta name="theme-color" content="#0a0c12">
+
+  <!-- Open Graph / social sharing -->
+  <meta property="og:type"        content="website">
+  <meta property="og:title"       content="{% block og_title %}WVVYReach{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}AI-powered outbound CRM{% endblock %}">
+  <meta property="og:image"       content="{% block og_image %}{% static 'crm/og-image.png' %}{% endblock %}">
+  <meta name="twitter:card"       content="summary_large_image">
+  <meta name="twitter:image"      content="{% block twitter_image %}{% static 'crm/og-image.png' %}{% endblock %}">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
