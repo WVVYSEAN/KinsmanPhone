@@ -277,7 +277,8 @@
                 <td class="px-4 py-2.5" style="color:var(--text-secondary)">{{ c.company|default:"—" }}</td>
                 <td class="px-4 py-2.5">
                   {% if c.phone %}
-                  <a href="tel:{{ c.phone }}" style="color:var(--cyan);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:.75rem"
+                  <a href="tel:{{ c.phone }}" data-raw-phone="{{ c.phone }}"
+                     style="color:var(--cyan);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:.75rem"
                      onmouseenter="this.style.opacity='.7'" onmouseleave="this.style.opacity='1'">{{ c.phone }}</a>
                   {% else %}<span style="color:var(--text-tertiary)">—</span>{% endif %}
                 </td>

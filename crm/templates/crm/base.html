@@ -232,5 +232,94 @@
   </script>
 
   {% block extra_js %}{% endblock %}
+
+  <!-- Phone number formatting (libphonenumber-js, presentation layer only) -->
+  <script src="https://unpkg.com/libphonenumber-js@1/bundle/libphonenumber-min.js"></script>
+  <script>
+  window._phone = (() => {
+    const lp = window.libphonenumber;
+    if (!lp) return null;
+
+    function tryParse(str, region) {
+      try { const p = lp.parsePhoneNumber(str, region); if (p && p.isValid()) return p; } catch {}
+      if (region !== 'US') {
+        try { const p = lp.parsePhoneNumber(str, 'US'); if (p && p.isValid()) return p; } catch {}
+      }
+      return null;
+    }
+
+    // Higher = more detailed (prefer country-code prefix, then separators, then length)
+    function detailScore(raw) {
+      let s = 0;
+      if (/^\s*\+/.test(raw))       s += 100;
+      if (/[-().]/.test(raw))       s += 10;
+      s += raw.length;
+      return s;
+    }
+
+    // Parse a raw phone string (possibly comma/semicolon/newline-delimited),
+    // deduplicate entries that share an E.164 value, return the most detailed
+    // presentation from each group plus any unparseable values.
+    function process(rawStr, defaultRegion) {
+      defaultRegion = defaultRegion || 'US';
+      const parts = (rawStr || '').split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+      if (!parts.length) return [];
+
+      const groups = new Map(); // e164 → [{raw, parsed}]
+      const orphans = [];
+
+      for (const raw of parts) {
+        const parsed = tryParse(raw, defaultRegion);
+        if (parsed) {
+          const key = parsed.format('E.164');
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push({ raw, parsed });
+        } else {
+          orphans.push(raw);
+        }
+      }
+
+      const out = [];
+      for (const [e164, candidates] of groups) {
+        const best = candidates.sort((a, b) => detailScore(b.raw) - detailScore(a.raw))[0];
+        const display = best.parsed.country === 'US'
+          ? best.parsed.formatNational()      // (555) 123-4567
+          : best.parsed.formatInternational(); // +44 20 7946 0958
+        out.push({ display, href: 'tel:' + e164, raw: best.raw });
+      }
+      orphans.forEach(r => out.push({ display: r, href: 'tel:' + r, raw: r }));
+      return out;
+    }
+
+    // Apply to a single <a data-raw-phone> element.
+    // Updates href to E.164 and replaces the text node with the formatted display.
+    // Preserves any child elements (SVG icons etc).
+    function applyToLink(el) {
+      const raw = el.dataset.rawPhone;
+      if (!raw) return;
+      const results = process(raw);
+      if (!results.length) return;
+
+      const primary = results[0];
+      el.href = primary.href;
+
+      // Find and update the text node that contains the raw phone number,
+      // leaving SVG/icon children untouched.
+      const textNodes = Array.from(el.childNodes).filter(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+      if (textNodes.length) {
+        textNodes[textNodes.length - 1].textContent = primary.display;
+      } else if (!el.querySelector('svg')) {
+        el.textContent = primary.display;
+      }
+    }
+
+    // Auto-format every phone link on the page
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('a[data-raw-phone]').forEach(applyToLink);
+    });
+
+    return { process, applyToLink };
+  })();
+  </script>
 </body>
 </html>
