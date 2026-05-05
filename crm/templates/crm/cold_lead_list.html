@@ -133,14 +133,6 @@
       <p class="text-xs mt-0.5" style="color:var(--text-tertiary)">{{ total }} total in pipeline</p>
     </div>
     <div class="flex items-center gap-2" id="toolbar-btns">
-      <!-- AI Search button -->
-      <button type="button" id="ai-search-btn" onclick="toggleAiPanel()" class="ai-btn">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
-        </svg>
-        AI Search
-      </button>
-
       <!-- Sort button -->
       <button type="button" id="sort-toggle-btn" onclick="toggleSortPanel()" class="sort-btn">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,32 +178,25 @@
     <button type="button" class="cl-pill-add" onclick="openSaveModal()" title="Save current view as a filter pill" id="pill-add-btn" style="display:none">+</button>
   </div>
 
-  <!-- ── AI Search panel ── -->
-  <div id="ai-panel" style="display:none">
-    <div class="wvvy-card px-4 py-4 space-y-3" style="border-color:rgba(139,92,246,0.3)">
-      <div class="flex items-center gap-2">
-        <svg class="w-4 h-4 flex-shrink-0" style="color:#a78bfa" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+  <!-- ── AI Search (always open) ── -->
+  <div class="wvvy-card px-4 py-3" style="border-color:rgba(139,92,246,0.25)">
+    <div class="flex gap-3 items-center">
+      <svg class="w-4 h-4 flex-shrink-0" style="color:#a78bfa" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+      </svg>
+      <input id="ai-query-input" type="text"
+             placeholder='Describe who you&apos;re looking for — e.g. "HVAC companies in the southeast" or "Tire shops over 10 years old"'
+             class="wvvy-input flex-1"
+             style="font-size:0.9rem"
+             onkeydown="if(event.key==='Enter'){runAiSearch();}"
+             autocomplete="off">
+      <button type="button" id="ai-run-btn" onclick="runAiSearch()"
+              class="ai-btn" style="white-space:nowrap;flex-shrink:0">
+        <svg id="ai-run-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
-        <span class="text-xs font-semibold" style="color:#a78bfa">AI-powered search</span>
-        <span class="text-xs" style="color:var(--text-tertiary)">— describe what you're looking for in plain English</span>
-      </div>
-      <div class="flex gap-2">
-        <input id="ai-query-input" type="text"
-               placeholder='e.g. "HVAC companies in the southeast" or "Tire shops over 10 years old"'
-               class="wvvy-input flex-1"
-               style="font-size:0.875rem"
-               onkeydown="if(event.key==='Enter'){runAiSearch();}"
-               autocomplete="off">
-        <button type="button" id="ai-run-btn" onclick="runAiSearch()"
-                class="ai-btn" style="white-space:nowrap;flex-shrink:0">
-          <svg id="ai-run-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-          Search
-        </button>
-      </div>
-      <p class="text-xs" style="color:var(--text-tertiary)">AI will score and rank leads by relevance. Results overlay the current filtered view.</p>
+        Search
+      </button>
     </div>
   </div>
 
@@ -237,23 +222,6 @@
     <div id="sort-hidden-container"></div>
     <!-- Active pill tracking -->
     <input type="hidden" name="active_pill_id" id="active-pill-id" value="{{ active_pill_id|default:'' }}">
-    <!-- Filter logic -->
-    <input type="hidden" name="filter_logic" id="logic-input" value="{{ filter_logic }}">
-    <!-- Filter rows injected by JS as ff0/fo0/fv0 … -->
-    <div id="filter-hidden-container"></div>
-
-    <!-- Search bar -->
-    <div class="relative">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:var(--text-tertiary)" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-      </svg>
-      <input type="text" name="q" id="search-q" value="{{ q }}"
-             placeholder="Search by name, email, or company…"
-             class="wvvy-input w-full"
-             style="padding-left:2.25rem;font-size:0.9rem"
-             autocomplete="off">
-    </div>
-
     <!-- Sort panel (slide-down) -->
     <div id="sort-panel" style="display:none">
       <div class="wvvy-card px-4 py-4 space-y-3">
@@ -271,32 +239,6 @@
           <button type="button" onclick="applySort()" class="wvvy-btn-primary" style="font-size:0.8125rem">Apply Sort</button>
         </div>
       </div>
-    </div>
-
-    <!-- Filter builder panel -->
-    <div id="filter-panel" style="display:none">
-      <div class="wvvy-card px-4 py-4 space-y-2">
-        <div id="logic-row" class="flex items-center gap-2 pb-1" style="display:none !important">
-          <span class="text-xs" style="color:var(--text-tertiary)">Match</span>
-          <button type="button" id="logic-and" class="logic-btn {% if filter_logic == 'AND' %}active{% endif %}" onclick="setLogic('AND')">AND</button>
-          <button type="button" id="logic-or"  class="logic-btn {% if filter_logic == 'OR'  %}active{% endif %}" onclick="setLogic('OR')">OR</button>
-          <span class="text-xs" style="color:var(--text-tertiary)">of the following filters</span>
-        </div>
-        <div id="filter-rows-ui"></div>
-        <button type="button" onclick="addFilterRow()"
-                style="font-size:0.75rem;color:var(--cyan);font-weight:600;background:none;border:none;cursor:pointer;padding:0.25rem 0;margin-top:0.25rem">
-          + Add Filter
-        </button>
-      </div>
-    </div>
-
-    <!-- Add filter trigger (when panel is hidden) -->
-    <div id="add-filter-trigger">
-      <button type="button" onclick="showFilterPanel()"
-              style="font-size:0.75rem;color:var(--text-tertiary);font-weight:500;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:0.3rem">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h6"/></svg>
-        Add Filter
-      </button>
     </div>
 
     <!-- Results summary bar -->
@@ -486,12 +428,10 @@
 {% block extra_js %}
 <script>
 // ── Server data ───────────────────────────────────────────────────────────────
-const _initialRows  = {{ filter_rows_json|safe }};
 const _savedFilters = {{ saved_filters|safe }};
 const _activeChips  = new Set({{ chips_json|safe }});
 let   _sortLevels   = {{ sort_levels_json|safe }};
 let   _activePillId = {{ active_pill_id|default:'null' }};
-let   _rowCounter   = _initialRows.length;
 
 // ── Curated emoji set ─────────────────────────────────────────────────────────
 const EMOJI_LIST = ['📊','📈','💰','🎯','🔥','⚡','🌟','💎','🏆','🎪','📞','💬','📬','📅','🔍','👥','🌍','🏢','💼','🤝','📋','✅','🚀','❤️'];
@@ -509,66 +449,6 @@ const SORT_FIELDS = [
   {val:'updated_at',  label:'Date Last Edited'},
 ];
 
-// ── Filter field/operator metadata ───────────────────────────────────────────
-const FILTER_FIELDS = [
-  {val:'name',         label:'Name',              type:'text'},
-  {val:'email',        label:'Email',             type:'text'},
-  {val:'company',      label:'Company',           type:'text'},
-  {val:'role',         label:'Role / Title',      type:'text'},
-  {val:'location',     label:'Location',          type:'text'},
-  {val:'industry',     label:'Industry',          type:'text'},
-  {val:'heat',         label:'Heat Level',        type:'select'},
-  {val:'called',       label:'Called',            type:'boolean'},
-  {val:'call_outcome', label:'Call Outcome',      type:'select'},
-  {val:'phone',        label:'Phone Number',      type:'presence'},
-  {val:'created_at',   label:'Date Added',        type:'date'},
-  {val:'updated_at',   label:'Date Last Edited',  type:'date'},
-];
-
-const OPERATORS = {
-  text:     [
-    {op:'contains',      label:'Contains'},
-    {op:'not_contains',  label:'Does Not Contain'},
-    {op:'equals',        label:'Equals'},
-    {op:'not_equals',    label:'Does Not Equal'},
-    {op:'starts_with',   label:'Starts With'},
-    {op:'ends_with',     label:'Ends With'},
-    {op:'is_empty',      label:'Is Empty'},
-    {op:'is_not_empty',  label:'Is Not Empty'},
-  ],
-  select:   [
-    {op:'is',        label:'Is'},
-    {op:'is_not',    label:'Is Not'},
-    {op:'is_any_of', label:'Is Any Of'},
-    {op:'is_none_of',label:'Is None Of'},
-  ],
-  boolean:  [{op:'is_true',label:'Is True'},{op:'is_false',label:'Is False'}],
-  presence: [{op:'is_not_empty',label:'Has Phone'},{op:'is_empty',label:'No Phone'}],
-  date:     [
-    {op:'is_date',        label:'Is'},
-    {op:'is_not_date',    label:'Is Not'},
-    {op:'is_before',      label:'Is Before'},
-    {op:'is_on_or_before',label:'Is On or Before'},
-    {op:'is_after',       label:'Is After'},
-    {op:'is_on_or_after', label:'Is On or After'},
-    {op:'is_between',     label:'Is Between'},
-    {op:'is_this_week',   label:'Is This Week'},
-    {op:'is_this_month',  label:'Is This Month'},
-    {op:'in_last_x_days', label:'In the Last X Days'},
-    {op:'in_next_x_days', label:'In the Next X Days'},
-    {op:'has_no_value',   label:'Has No Value'},
-  ],
-};
-
-const SELECT_OPTIONS = {
-  heat:         [{val:'cold',label:'Cold'},{val:'medium',label:'Medium'},{val:'warm',label:'Warm'},{val:'active',label:'Active Client'},{val:'dormant',label:'Dormant'}],
-  call_outcome: [{val:'interested',label:'Interested'},{val:'not_now',label:'Not Now'},{val:'not_interested',label:'Not Interested'},{val:'booked',label:'Discovery Booked'},{val:'no_answer',label:'No Answer'}],
-};
-
-const NO_VALUE_OPS  = new Set(['is_empty','is_not_empty','is_true','is_false','has_no_value','is_this_week','is_this_month']);
-const RANGE_DATE_OP = 'is_between';
-const X_DAYS_OPS    = new Set(['in_last_x_days','in_next_x_days']);
-
 // ── Relative time ─────────────────────────────────────────────────────────────
 function relativeTime(isoStr) {
   if (!isoStr) return '—';
@@ -582,114 +462,6 @@ function relativeTime(isoStr) {
   if (diffDays < 30)  { const w = Math.floor(diffDays/7); return `${w} wk${w>1?'s':''} ago`; }
   if (diffDays < 365) return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-}
-
-// ── Filter row rendering ──────────────────────────────────────────────────────
-function getFieldType(v) { return (FILTER_FIELDS.find(f=>f.val===v)||{}).type||'text'; }
-
-function buildValueInput(idx, fieldVal, op, val) {
-  if (NO_VALUE_OPS.has(op)) return '';
-  const type = getFieldType(fieldVal);
-  if (type === 'select') {
-    const opts = SELECT_OPTIONS[fieldVal] || [];
-    if (op === 'is_any_of' || op === 'is_none_of')
-      return `<input name="fv${idx}" type="text" value="${esc(val)}" placeholder="val1, val2…" class="wvvy-input" style="min-width:140px">`;
-    return `<select name="fv${idx}" class="wvvy-input">${opts.map(o=>`<option value="${o.val}"${o.val===val?' selected':''}>${o.label}</option>`).join('')}</select>`;
-  }
-  if (type === 'date') {
-    if (X_DAYS_OPS.has(op))
-      return `<input name="fv${idx}" type="number" min="1" value="${esc(val)||'7'}" class="wvvy-input" style="width:80px"> <span style="font-size:0.75rem;color:var(--text-tertiary)">days</span>`;
-    if (op === RANGE_DATE_OP) {
-      const parts = (val||'').split(',');
-      return `<input name="fv${idx}-a" type="date" value="${esc((parts[0]||'').trim())}" class="wvvy-input" style="width:140px">
-              <span style="font-size:0.75rem;color:var(--text-tertiary)">to</span>
-              <input name="fv${idx}-b" type="date" value="${esc((parts[1]||'').trim())}" class="wvvy-input" style="width:140px">
-              <input type="hidden" name="fv${idx}" id="fv${idx}-hidden">`;
-    }
-    return `<input name="fv${idx}" type="date" value="${esc(val)}" class="wvvy-input">`;
-  }
-  return `<input name="fv${idx}" type="text" value="${esc(val)}" placeholder="Value…" class="wvvy-input" style="min-width:140px">`;
-}
-
-function renderFilterRow(idx, initialField, initialOp, initialVal) {
-  const type    = getFieldType(initialField);
-  const ops     = OPERATORS[type] || OPERATORS.text;
-  const fieldOpts = FILTER_FIELDS.map(f=>`<option value="${f.val}"${f.val===initialField?' selected':''}>${f.label}</option>`).join('');
-  const opOpts    = ops.map(o=>`<option value="${o.op}"${o.op===initialOp?' selected':''}>${o.label}</option>`).join('');
-  const valInput  = buildValueInput(idx, initialField, initialOp, initialVal);
-
-  const row = document.createElement('div');
-  row.className = 'filter-row'; row.id = `fr-${idx}`;
-  row.innerHTML = `
-    <select name="ff${idx}" class="wvvy-input" style="min-width:155px" onchange="onFieldChange(${idx},this.value)">
-      <option value="">Field…</option>${fieldOpts}
-    </select>
-    <select name="fo${idx}" id="op-sel-${idx}" class="wvvy-input" style="min-width:175px" onchange="onOpChange(${idx},this.value)">
-      ${opOpts}
-    </select>
-    <span id="val-wrap-${idx}" class="flex items-center gap-2">${valInput}</span>
-    <button type="button" onclick="removeFilterRow(${idx})"
-            style="color:var(--text-tertiary);background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;padding:0 0.25rem"
-            onmouseenter="this.style.color='var(--rose)'" onmouseleave="this.style.color='var(--text-tertiary)'">×</button>`;
-  return row;
-}
-
-function onFieldChange(idx, fieldVal) {
-  const type  = getFieldType(fieldVal);
-  const ops   = OPERATORS[type] || OPERATORS.text;
-  const opSel = document.getElementById(`op-sel-${idx}`);
-  opSel.innerHTML = ops.map(o=>`<option value="${o.op}">${o.label}</option>`).join('');
-  onOpChange(idx, opSel.value);
-  updateLogicToggle();
-}
-
-function onOpChange(idx, op) {
-  const fieldVal = document.querySelector(`#fr-${idx} [name="ff${idx}"]`)?.value || '';
-  const wrap = document.getElementById(`val-wrap-${idx}`);
-  if (!wrap) return;
-  // Merge "is_between" two-part value before replacing
-  if (op === RANGE_DATE_OP) {
-    wrap.innerHTML = buildValueInput(idx, fieldVal, op, '');
-    // Wire up the two date inputs to sync the hidden combined input
-    ['a','b'].forEach(part => {
-      const inp = wrap.querySelector(`[name="fv${idx}-${part}"]`);
-      if (inp) inp.addEventListener('change', () => { syncBetweenInputs(idx, wrap); submitForm(300); });
-    });
-    return;
-  }
-  wrap.innerHTML = buildValueInput(idx, fieldVal, op, '');
-}
-
-function syncBetweenInputs(idx, wrap) {
-  const a = wrap.querySelector(`[name="fv${idx}-a"]`)?.value || '';
-  const b = wrap.querySelector(`[name="fv${idx}-b"]`)?.value || '';
-  const h = document.getElementById(`fv${idx}-hidden`);
-  if (h) h.value = `${a},${b}`;
-}
-
-function addFilterRow(initialField='', initialOp='', initialVal='', autoSubmit=true) {
-  showFilterPanel();
-  const idx = _rowCounter++;
-  document.getElementById('filter-rows-ui').appendChild(renderFilterRow(idx, initialField, initialOp, initialVal));
-  updateLogicToggle();
-  if (autoSubmit && initialField) submitForm();
-}
-
-function removeFilterRow(idx) {
-  document.getElementById(`fr-${idx}`)?.remove();
-  updateLogicToggle();
-  submitForm();
-}
-
-function updateLogicToggle() {
-  const rows = document.querySelectorAll('#filter-rows-ui .filter-row');
-  const lr   = document.getElementById('logic-row');
-  if (lr) lr.style.display = rows.length >= 2 ? 'flex' : 'none';
-}
-
-function showFilterPanel() {
-  document.getElementById('filter-panel').style.display = '';
-  document.getElementById('add-filter-trigger').style.display = 'none';
 }
 
 // ── Chips ─────────────────────────────────────────────────────────────────────
@@ -756,7 +528,6 @@ function renderSortLevelUI() {
 
 function addSortLevel() {
   if (_pendingSortLevels.length >= 5) return;
-  // Pick a field not already in use
   const used = new Set(_pendingSortLevels.map(sl=>sl.field));
   const next = SORT_FIELDS.find(f=>!used.has(f.val)) || SORT_FIELDS[0];
   _pendingSortLevels.push({field: next.val, dir: 'desc'});
@@ -774,8 +545,6 @@ function resetSort() {
 }
 
 function applySort() {
-  // Read selects from the rendered panel (they update _pendingSortLevels via onchange,
-  // but re-read to be safe)
   const rows = document.querySelectorAll('#sort-levels-ui .sort-level-row');
   _sortLevels = Array.from(rows).map(row => {
     const sels = row.querySelectorAll('select');
@@ -811,7 +580,6 @@ function updateSortBadge() {
   }
 }
 
-// Column header quick sort (resets to single level on that field)
 function setSort(field) {
   const curField = _sortLevels[0]?.field;
   const curDir   = _sortLevels[0]?.dir || 'desc';
@@ -819,14 +587,6 @@ function setSort(field) {
   _sortLevels = [{field, dir: newDir}];
   syncSortHiddenInputs();
   updateSortBadge();
-  submitForm();
-}
-
-// ── Logic toggle ──────────────────────────────────────────────────────────────
-function setLogic(val) {
-  document.getElementById('logic-input').value = val;
-  document.getElementById('logic-and').classList.toggle('active', val === 'AND');
-  document.getElementById('logic-or').classList.toggle('active',  val === 'OR');
   submitForm();
 }
 
@@ -842,25 +602,9 @@ function submitForm(delay=0) {
 
 // ── Get current filter state (for saving) ────────────────────────────────────
 function getCurrentState() {
-  const rows = Array.from(document.querySelectorAll('#filter-rows-ui .filter-row')).map(row => {
-    const idx = row.id.replace('fr-','');
-    let val = row.querySelector(`[name="fv${idx}"]`)?.value || '';
-    // For is_between, combine two date parts
-    const a = row.querySelector(`[name="fv${idx}-a"]`);
-    const b = row.querySelector(`[name="fv${idx}-b"]`);
-    if (a && b) val = `${a.value},${b.value}`;
-    return {
-      field: row.querySelector(`[name="ff${idx}"]`)?.value || '',
-      op:    row.querySelector(`[name="fo${idx}"]`)?.value || '',
-      val,
-    };
-  });
   return {
-    q:            document.getElementById('search-q').value,
-    chips:        [..._activeChips],
-    filters:      rows,
-    filter_logic: document.getElementById('logic-input').value,
-    sort_levels:  _sortLevels,
+    chips:       [..._activeChips],
+    sort_levels: _sortLevels,
   };
 }
 
@@ -874,7 +618,6 @@ function applyUserPill(sfObj) {
     if (f.field) { params.set(`ff${i}`, f.field); params.set(`fo${i}`, f.op); params.set(`fv${i}`, f.val || ''); }
   });
   if (s.filter_logic) params.set('filter_logic', s.filter_logic);
-  // Sort: support both new sort_levels and old sort/sort_dir
   const levels = s.sort_levels || (s.sort ? [{field: s.sort, dir: s.sort_dir || 'desc'}] : []);
   levels.forEach((sl, i) => { params.set(`s${i+1}`, sl.field); params.set(`d${i+1}`, sl.dir); });
   params.set('active_pill_id', sfObj.id);
@@ -911,13 +654,11 @@ function renderUserPills() {
     container.appendChild(pill);
   });
 
-  // Update "Update" button label
   const activePill = _savedFilters.find(sf => sf.id === _activePillId);
   if (activePill) {
     document.getElementById('save-btns-no-pill').style.display   = 'none';
     document.getElementById('save-btns-with-pill').style.display = 'flex';
     document.getElementById('update-pill-btn').textContent = `Update "${activePill.name}"`;
-    // Show active pill name in results bar
     document.getElementById('active-pill-label').style.display = '';
     document.getElementById('active-pill-name').textContent = activePill.name;
   } else {
@@ -930,8 +671,7 @@ function renderUserPills() {
 // ── Update active pill ────────────────────────────────────────────────────────
 function updateActivePill() {
   if (!_activePillId) return;
-  const state   = getCurrentState();
-  const errEl   = document.getElementById('save-filter-error');
+  const state = getCurrentState();
   fetch('/api/saved-filters/save/', {
     method: 'POST',
     headers: {'Content-Type':'application/json','X-CSRFToken':getCsrf()},
@@ -940,7 +680,6 @@ function updateActivePill() {
     .then(r => r.json())
     .then(data => {
       if (data.error) { showToast(data.error, true); return; }
-      // Update local saved filters list
       const idx = _savedFilters.findIndex(sf => sf.id === data.id);
       if (idx !== -1) _savedFilters[idx].filter_state = state;
       showToast(`"${data.name}" updated`);
@@ -999,7 +738,6 @@ function saveFilter() {
     .then(r => r.json())
     .then(data => {
       if (data.error) { errEl.textContent = data.error; errEl.classList.remove('hidden'); return; }
-      // Update local list
       const idx = _savedFilters.findIndex(sf => sf.id === data.id);
       if (idx !== -1) { _savedFilters[idx].filter_state = getCurrentState(); _savedFilters[idx].emoji = data.emoji; }
       else            { _savedFilters.push({id: data.id, name: data.name, emoji: data.emoji, filter_state: getCurrentState()}); }
@@ -1056,77 +794,40 @@ function escHtml(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Sort hidden inputs
   syncSortHiddenInputs();
   updateSortBadge();
-
-  // Restore filter rows (no auto-submit during init)
-  if (_initialRows.length) {
-    showFilterPanel();
-    _initialRows.forEach(r => addFilterRow(r.field, r.op, r.val, false));
-    _rowCounter = Math.max(..._initialRows.map(r => r.idx + 1), _initialRows.length);
-  }
-
-  // Chip hidden inputs
   syncChipInputs();
-
-  // User pills
   renderUserPills();
 
-  // Relative time for date cells
   document.querySelectorAll('.rel-time').forEach(el => {
     const ts = el.dataset.ts;
     if (ts) { el.textContent = relativeTime(ts); el.style.cursor = 'help'; }
   });
 
-  // Debounced search
-  let searchTimer = null;
-  document.getElementById('search-q').addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => submitForm(), 300);
-  });
-
-  // Results count pulse
   const countEl = document.getElementById('results-count-val');
   if (countEl) {
     countEl.classList.add('pulse');
     setTimeout(() => countEl.classList.remove('pulse'), 400);
   }
+
+  setTimeout(() => document.getElementById('ai-query-input')?.focus(), 100);
 });
 
 // Escape closes modals
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeSaveModal(); closeSortPanel(); closeDeleteModal(); closeAiPanel(); }
+  if (e.key === 'Escape') { closeSaveModal(); closeSortPanel(); closeDeleteModal(); }
 });
 
 // ── AI Search ─────────────────────────────────────────────────────────────────
-let _aiMode      = false;
-let _aiScoreMap  = {};   // pk → score
-let _origRowOrder = [];  // original <tr> elements in order
-
-function toggleAiPanel() {
-  const panel = document.getElementById('ai-panel');
-  const btn   = document.getElementById('ai-search-btn');
-  if (panel.style.display === 'none') {
-    panel.style.display = '';
-    btn.classList.add('active');
-    setTimeout(() => document.getElementById('ai-query-input').focus(), 60);
-  } else {
-    closeAiPanel();
-  }
-}
-
-function closeAiPanel() {
-  document.getElementById('ai-panel').style.display = 'none';
-  document.getElementById('ai-search-btn').classList.remove('active');
-}
+let _aiMode       = false;
+let _aiScoreMap   = {};
+let _origRowOrder = [];
 
 function runAiSearch() {
   const query = document.getElementById('ai-query-input').value.trim();
   if (!query) return;
 
-  const runBtn  = document.getElementById('ai-run-btn');
-  const runIcon = document.getElementById('ai-run-icon');
+  const runBtn = document.getElementById('ai-run-btn');
   runBtn.disabled = true;
   runBtn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Searching…';
 
@@ -1151,34 +852,28 @@ function _applyAiResults(data) {
   const tbody = document.querySelector('#leads-tbody');
   if (!tbody) return;
 
-  // Save original order on first AI run
   if (!_aiMode) {
     _origRowOrder = Array.from(tbody.querySelectorAll('tr[data-pk]'));
   }
   _aiMode = true;
 
-  // Build score map from results
   _aiScoreMap = {};
   (data.matches || []).forEach(m => { _aiScoreMap[m.pk] = m.score; });
 
   const maxScore = data.matches.length ? data.matches[0].score : 1;
 
-  // Sort current rows by score, hide non-matches
-  const allRows = Array.from(tbody.querySelectorAll('tr[data-pk]'));
+  const allRows   = Array.from(tbody.querySelectorAll('tr[data-pk]'));
   const matched   = allRows.filter(tr => _aiScoreMap[tr.dataset.pk] > 0)
                            .sort((a, b) => (_aiScoreMap[b.dataset.pk] || 0) - (_aiScoreMap[a.dataset.pk] || 0));
   const unmatched = allRows.filter(tr => !_aiScoreMap[tr.dataset.pk]);
 
-  // Remove all rows and re-insert in order
   allRows.forEach(tr => tr.remove());
 
   matched.forEach(tr => {
-    const score  = _aiScoreMap[tr.dataset.pk] || 0;
-    const pct    = Math.round((score / maxScore) * 100);
-    // Add relevance badge next to the name link
+    const score = _aiScoreMap[tr.dataset.pk] || 0;
+    const pct   = Math.round((score / maxScore) * 100);
     const nameCell = tr.querySelector('td:first-child');
     if (nameCell) {
-      // Remove any existing badge
       nameCell.querySelector('.ai-badge')?.remove();
       const badge = document.createElement('span');
       badge.className = 'ai-badge';
@@ -1195,11 +890,8 @@ function _applyAiResults(data) {
     tbody.appendChild(tr);
   });
 
-  // Show banner
   const visibleCount = matched.length;
-  const totalMatches = data.total;
-  const offPageExtra = totalMatches - visibleCount;
-
+  const offPageExtra = data.total - visibleCount;
   document.getElementById('ai-banner-text').textContent = `"${data.explanation}"`;
   document.getElementById('ai-banner-count').textContent =
     visibleCount
@@ -1217,7 +909,6 @@ function clearAiSearch() {
   const tbody = document.querySelector('#leads-tbody');
   if (!tbody || !_origRowOrder.length) return;
 
-  // Restore original order and visibility
   _origRowOrder.forEach(tr => {
     tr.querySelector('.ai-badge')?.remove();
     tr.style.display = '';
